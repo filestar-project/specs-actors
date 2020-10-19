@@ -122,7 +122,7 @@ func PledgePenaltyForTermination(dayReward abi.TokenAmount, sectorAge abi.ChainE
 // Computes the PreCommit deposit given sector qa weight and current network conditions.
 // PreCommit Deposit = BR(PreCommitDepositProjectionPeriod)
 func PreCommitDepositForPower(rewardEstimate, networkQAPowerEstimate smoothing.FilterEstimate, qaSectorPower abi.StoragePower) abi.TokenAmount {
-	return ExpectedRewardForPower(rewardEstimate, networkQAPowerEstimate, qaSectorPower, PreCommitDepositProjectionPeriod)
+	return abi.NewTokenAmount(0)
 }
 
 // Computes the pledge requirement for committing new quality-adjusted power to the network, given the current
