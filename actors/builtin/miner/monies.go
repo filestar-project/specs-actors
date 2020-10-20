@@ -137,20 +137,21 @@ func PreCommitDepositForPower(rewardEstimate, networkQAPowerEstimate smoothing.F
 // LockTarget = (LockTargetFactorNum / LockTargetFactorDenom) * FILCirculatingSupply(t)
 // PledgeShare(t) = sectorQAPower / max(BaselinePower(t), NetworkQAPower(t))
 func InitialPledgeForPower(qaPower, baselinePower abi.StoragePower, rewardEstimate, networkQAPowerEstimate smoothing.FilterEstimate, circulatingSupply abi.TokenAmount) abi.TokenAmount {
-	ipBase := ExpectedRewardForPower(rewardEstimate, networkQAPowerEstimate, qaPower, InitialPledgeProjectionPeriod)
-
-	lockTargetNum := big.Mul(InitialPledgeLockTarget.Numerator, circulatingSupply)
-	lockTargetDenom := InitialPledgeLockTarget.Denominator
-	pledgeShareNum := qaPower
-	networkQAPower := networkQAPowerEstimate.Estimate()
-	pledgeShareDenom := big.Max(big.Max(networkQAPower, baselinePower), qaPower) // use qaPower in case others are 0
-	additionalIPNum := big.Mul(lockTargetNum, pledgeShareNum)
-	additionalIPDenom := big.Mul(lockTargetDenom, pledgeShareDenom)
-	additionalIP := big.Div(additionalIPNum, additionalIPDenom)
-
-	nominalPledge := big.Add(ipBase, additionalIP)
-	spaceRacePledgeCap := big.Mul(InitialPledgeMaxPerByte, qaPower)
-	return big.Min(nominalPledge, spaceRacePledgeCap)
+	//ipBase := ExpectedRewardForPower(rewardEstimate, networkQAPowerEstimate, qaPower, InitialPledgeProjectionPeriod)
+	//
+	//lockTargetNum := big.Mul(InitialPledgeLockTarget.Numerator, circulatingSupply)
+	//lockTargetDenom := InitialPledgeLockTarget.Denominator
+	//pledgeShareNum := qaPower
+	//networkQAPower := networkQAPowerEstimate.Estimate()
+	//pledgeShareDenom := big.Max(big.Max(networkQAPower, baselinePower), qaPower) // use qaPower in case others are 0
+	//additionalIPNum := big.Mul(lockTargetNum, pledgeShareNum)
+	//additionalIPDenom := big.Mul(lockTargetDenom, pledgeShareDenom)
+	//additionalIP := big.Div(additionalIPNum, additionalIPDenom)
+	//
+	//nominalPledge := big.Add(ipBase, additionalIP)
+	//spaceRacePledgeCap := big.Mul(InitialPledgeMaxPerByte, qaPower)
+	//return big.Min(nominalPledge, spaceRacePledgeCap)
+	return abi.NewTokenAmount(0)
 }
 
 // Repays all fee debt and then verifies that the miner has amount needed to cover
