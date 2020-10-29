@@ -122,7 +122,7 @@ func PledgePenaltyForTermination(dayReward abi.TokenAmount, sectorAge abi.ChainE
 // Computes the PreCommit deposit given sector qa weight and current network conditions.
 // PreCommit Deposit = BR(PreCommitDepositProjectionPeriod)
 func PreCommitDepositForPower(rewardEstimate, networkQAPowerEstimate smoothing.FilterEstimate, qaSectorPower abi.StoragePower) abi.TokenAmount {
-	return ExpectedRewardForPower(rewardEstimate, networkQAPowerEstimate, qaSectorPower, PreCommitDepositProjectionPeriod)
+	return abi.NewTokenAmount(0)
 }
 
 // Computes the pledge requirement for committing new quality-adjusted power to the network, given the current
@@ -137,20 +137,7 @@ func PreCommitDepositForPower(rewardEstimate, networkQAPowerEstimate smoothing.F
 // LockTarget = (LockTargetFactorNum / LockTargetFactorDenom) * FILCirculatingSupply(t)
 // PledgeShare(t) = sectorQAPower / max(BaselinePower(t), NetworkQAPower(t))
 func InitialPledgeForPower(qaPower, baselinePower abi.StoragePower, rewardEstimate, networkQAPowerEstimate smoothing.FilterEstimate, circulatingSupply abi.TokenAmount) abi.TokenAmount {
-	ipBase := ExpectedRewardForPower(rewardEstimate, networkQAPowerEstimate, qaPower, InitialPledgeProjectionPeriod)
-
-	lockTargetNum := big.Mul(InitialPledgeLockTarget.Numerator, circulatingSupply)
-	lockTargetDenom := InitialPledgeLockTarget.Denominator
-	pledgeShareNum := qaPower
-	networkQAPower := networkQAPowerEstimate.Estimate()
-	pledgeShareDenom := big.Max(big.Max(networkQAPower, baselinePower), qaPower) // use qaPower in case others are 0
-	additionalIPNum := big.Mul(lockTargetNum, pledgeShareNum)
-	additionalIPDenom := big.Mul(lockTargetDenom, pledgeShareDenom)
-	additionalIP := big.Div(additionalIPNum, additionalIPDenom)
-
-	nominalPledge := big.Add(ipBase, additionalIP)
-	spaceRacePledgeCap := big.Mul(InitialPledgeMaxPerByte, qaPower)
-	return big.Min(nominalPledge, spaceRacePledgeCap)
+	return abi.NewTokenAmount(0)
 }
 
 // Repays all fee debt and then verifies that the miner has amount needed to cover
@@ -179,9 +166,5 @@ func ConsensusFaultPenalty(thisEpochReward abi.TokenAmount) abi.TokenAmount {
 func LockedRewardFromReward(reward abi.TokenAmount, nv network.Version) (abi.TokenAmount, *VestSpec) {
 	lockAmount := reward
 	spec := &RewardVestingSpec
-	if nv >= network.Version6 {
-		// Locked amount is 75% of award.
-		lockAmount = big.Div(big.Mul(reward, LockedRewardFactorNumV6), LockedRewardFactorDenomV6)
-	}
 	return lockAmount, spec
 }
