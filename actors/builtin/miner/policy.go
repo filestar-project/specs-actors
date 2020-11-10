@@ -93,6 +93,7 @@ var SealedCIDPrefix = cid.Prefix{
 // List of proof types which may be used when creating a new miner actor.
 // This is mutable to allow configuration of testing and development networks.
 var SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
+	abi.RegisteredSealProof_StackedDrg8GiBV1:  {},
 	abi.RegisteredSealProof_StackedDrg32GiBV1: {},
 	abi.RegisteredSealProof_StackedDrg64GiBV1: {},
 }
@@ -105,6 +106,7 @@ var MaxProveCommitDuration = map[abi.RegisteredSealProof]abi.ChainEpoch{
 	abi.RegisteredSealProof_StackedDrg8MiBV1:   builtin.EpochsInDay + PreCommitChallengeDelay,
 	abi.RegisteredSealProof_StackedDrg512MiBV1: builtin.EpochsInDay + PreCommitChallengeDelay,
 	abi.RegisteredSealProof_StackedDrg64GiBV1:  builtin.EpochsInDay + PreCommitChallengeDelay,
+	abi.RegisteredSealProof_StackedDrg8GiBV1:   builtin.EpochsInDay + PreCommitChallengeDelay,
 }
 
 // Maximum delay between challenge and pre-commitment.
