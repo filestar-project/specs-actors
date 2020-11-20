@@ -93,7 +93,6 @@ var SealedCIDPrefix = cid.Prefix{
 // List of proof types which may be used when creating a new miner actor.
 // This is mutable to allow configuration of testing and development networks.
 var SupportedProofTypes = map[abi.RegisteredSealProof]struct{}{
-	abi.RegisteredSealProof_StackedDrg8GiBV1:  {},
 	abi.RegisteredSealProof_StackedDrg32GiBV1: {},
 	abi.RegisteredSealProof_StackedDrg64GiBV1: {},
 }
