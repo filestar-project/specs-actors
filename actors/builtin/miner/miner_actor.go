@@ -828,7 +828,6 @@ func (a Actor) ConfirmSectorProofsValid(rt Runtime, params *builtin.ConfirmSecto
 		rt.Abortf(exitcode.ErrIllegalArgument, "all prove commits failed to validate")
 	}
 
-	var newPower PowerPair
 	totalPledge := big.Zero()
 	depositToUnlock := big.Zero()
 	newSectors := make([]*SectorOnChainInfo, 0)
@@ -894,7 +893,7 @@ func (a Actor) ConfirmSectorProofsValid(rt Runtime, params *builtin.ConfirmSecto
 		err = st.DeletePrecommittedSectors(store, newSectorNos...)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to delete precommited sectors")
 
-		newPower, err = st.AssignSectorsToDeadlines(store, rt.CurrEpoch(), newSectors, info.WindowPoStPartitionSectors, info.SectorSize)
+		err = st.AssignSectorsToDeadlines(store, rt.CurrEpoch(), newSectors, info.WindowPoStPartitionSectors, info.SectorSize)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to assign new sectors to deadlines")
 
 		// Unlock deposit for successful proofs, make it available for lock-up as initial pledge.
@@ -913,10 +912,8 @@ func (a Actor) ConfirmSectorProofsValid(rt Runtime, params *builtin.ConfirmSecto
 		builtin.RequireNoErr(rt, err, ErrBalanceInvariantBroken, "balance invariants broken")
 	})
 
-	// Request power and pledge update for activated sector.
-	requestUpdatePower(rt, newPower)
+	// Request pledge update for activated sector.
 	notifyPledgeChanged(rt, big.Sub(totalPledge, newlyVested))
-
 	return nil
 }
 
@@ -1453,11 +1450,12 @@ func (a Actor) CompactPartitions(rt Runtime, params *CompactPartitionsParams) *a
 		sectors, err := st.LoadSectorInfos(store, live)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load moved sectors")
 
-		newPower, err := deadline.AddSectors(store, info.WindowPoStPartitionSectors, true, sectors, info.SectorSize, quant)
+		proven := true
+		addedPower, err := deadline.AddSectors(store, info.WindowPoStPartitionSectors, proven, sectors, info.SectorSize, quant)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to add back moved sectors")
 
-		if !removedPower.Equals(newPower) {
-			rt.Abortf(exitcode.ErrIllegalState, "power changed when compacting partitions: was %v, is now %v", removedPower, newPower)
+		if !removedPower.Equals(addedPower) {
+			rt.Abortf(exitcode.ErrIllegalState, "power changed when compacting partitions: was %v, is now %v", removedPower, addedPower)
 		}
 		err = deadlines.UpdateDeadline(store, params.Deadline, deadline)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update deadline %d", params.Deadline)
