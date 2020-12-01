@@ -701,18 +701,16 @@ func (a Actor) ProveCommitSector(rt Runtime, params *ProveCommitSectorParams) *a
 	}
 
 	store := adt.AsStore(rt)
-	var st State
-	var precommit *SectorPreCommitOnChainInfo
 	sectorNo := params.SectorNumber
-	rt.StateTransaction(&st, func() {
-		var found bool
-		var err error
-		precommit, found, err = st.GetPrecommittedSector(store, sectorNo)
-		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load pre-committed sector %v", sectorNo)
-		if !found {
-			rt.Abortf(exitcode.ErrNotFound, "no pre-committed sector %v", sectorNo)
-		}
-	})
+
+	var st State
+	rt.StateReadonly(&st)
+
+	precommit, found, err := st.GetPrecommittedSector(store, sectorNo)
+	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load pre-committed sector %v", sectorNo)
+	if !found {
+		rt.Abortf(exitcode.ErrNotFound, "no pre-committed sector %v", sectorNo)
+	}
 
 	msd, ok := MaxProveCommitDuration[precommit.Info.SealProof]
 	if !ok {
