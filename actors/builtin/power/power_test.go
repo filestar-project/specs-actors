@@ -59,7 +59,7 @@ func TestConstruction(t *testing.T) {
 		assert.Equal(t, abi.NewStoragePower(0), st.TotalRawBytePower)
 		assert.Equal(t, int64(0), st.MinerAboveMinPowerCount)
 
-		claim, err := adt.AsMap(adt.AsStore(rt), st.Claims)
+		claim, err := adt.AsMap(adt.AsStore(rt), st.Claims, builtin.DefaultHamtBitwidth)
 		assert.NoError(t, err)
 		keys, err := claim.CollectKeys()
 		require.NoError(t, err)
@@ -640,7 +640,7 @@ func TestCron(t *testing.T) {
 		// assert used cron events are cleaned up
 		st := getState(rt)
 
-		mmap, err := adt.AsMultimap(rt.AdtStore(), st.CronEventQueue)
+		mmap, err := adt.AsMultimap(rt.AdtStore(), st.CronEventQueue, builtin.DefaultHamtBitwidth)
 		require.NoError(t, err)
 
 		var ev power.CronEvent
@@ -782,7 +782,7 @@ func TestSubmitPoRepForBulkVerify(t *testing.T) {
 		st := getState(rt)
 		store := rt.AdtStore()
 		require.NotNil(t, st.ProofValidationBatch)
-		mmap, err := adt.AsMultimap(store, *st.ProofValidationBatch)
+		mmap, err := adt.AsMultimap(store, *st.ProofValidationBatch, builtin.DefaultHamtBitwidth)
 		require.NoError(t, err)
 		arr, found, err := mmap.Get(abi.AddrKey(miner))
 		require.NoError(t, err)
@@ -1046,7 +1046,7 @@ func asKey(in string) abi.Keyer {
 }
 
 func verifyEmptyMap(t testing.TB, rt *mock.Runtime, cid cid.Cid) {
-	mapChecked, err := adt.AsMap(adt.AsStore(rt), cid)
+	mapChecked, err := adt.AsMap(adt.AsStore(rt), cid, builtin.DefaultHamtBitwidth)
 	assert.NoError(t, err)
 	keys, err := mapChecked.CollectKeys()
 	require.NoError(t, err)
@@ -1166,7 +1166,7 @@ func (h *spActorHarness) getClaim(rt *mock.Runtime, a addr.Address) *power.Claim
 	var st power.State
 	rt.GetState(&st)
 
-	claims, err := adt.AsMap(adt.AsStore(rt), st.Claims)
+	claims, err := adt.AsMap(adt.AsStore(rt), st.Claims, builtin.DefaultHamtBitwidth)
 	require.NoError(h.t, err)
 
 	var out power.Claim
@@ -1179,7 +1179,7 @@ func (h *spActorHarness) getClaim(rt *mock.Runtime, a addr.Address) *power.Claim
 
 func (h *spActorHarness) deleteClaim(rt *mock.Runtime, a addr.Address) {
 	st := getState(rt)
-	claims, err := adt.AsMap(adt.AsStore(rt), st.Claims)
+	claims, err := adt.AsMap(adt.AsStore(rt), st.Claims, builtin.DefaultHamtBitwidth)
 	require.NoError(h.t, err)
 	err = claims.Delete(abi.AddrKey(a))
 	require.NoError(h.t, err)
@@ -1192,7 +1192,7 @@ func (h *spActorHarness) getEnrolledCronTicks(rt *mock.Runtime, epoch abi.ChainE
 	var st power.State
 	rt.GetState(&st)
 
-	events, err := adt.AsMultimap(adt.AsStore(rt), st.CronEventQueue)
+	events, err := adt.AsMultimap(adt.AsStore(rt), st.CronEventQueue, builtin.DefaultHamtBitwidth)
 	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load cron events")
 
 	evts, found, err := events.Get(abi.IntKey(int64(epoch)))

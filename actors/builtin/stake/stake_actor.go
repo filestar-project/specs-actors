@@ -62,7 +62,7 @@ type ConstructorParams struct {
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.SystemActorAddr)
 
-	emptyMapCid, err := adt.MakeEmptyMap(adt.AsStore(rt)).Root()
+	emptyMapCid, err := adt.MakeEmptyMap(adt.AsStore(rt), builtin.DefaultHamtBitwidth).Root()
 	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to construct state")
 
 	st := ConstructState(params, emptyMapCid)
@@ -90,7 +90,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	builtin.RequireParam(rt, depositAmount.GreaterThanEqual(st.MinDepositAmount), "amount to deposit must be greater than or equal to %s", st.MinDepositAmount)
 
 	rt.StateTransaction(&st, func() {
-		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap)
+		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load locked principalsMap")
 		lockedPrincipals, found, err := st.LoadLockedPrincipals(store, lockedPrincipalMap, staker)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load locked principals for %v", staker)
@@ -99,7 +99,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 		}
 		newlyUnlocked := lockedPrincipals.unlockLockedPrincipals(st.PrincipalLockDuration, currEpoch)
 
-		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available principals")
 		_, err = st.updateAvailablePrincipal(availablePrincipalMap, staker, newlyUnlocked)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update available principals")
@@ -133,7 +133,7 @@ func (a Actor) WithdrawPrincipal(rt Runtime, params *WithdrawParams) *abi.EmptyV
 	store := adt.AsStore(rt)
 	var st State
 	rt.StateTransaction(&st, func() {
-		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available principals")
 		_, err = st.updateAvailablePrincipal(availablePrincipalMap, stakerAddr, params.AmountRequested.Neg())
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update available principals")
@@ -141,7 +141,7 @@ func (a Actor) WithdrawPrincipal(rt Runtime, params *WithdrawParams) *abi.EmptyV
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to flush available principals")
 		st.AvailablePrincipalMap = ap
 
-		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap)
+		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load stake powers")
 		err = st.updateStakePower(stakePowerMap, stakerAddr, params.AmountRequested.Neg())
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update stake power")
@@ -166,7 +166,7 @@ func (a Actor) WithdrawReward(rt Runtime, params *WithdrawParams) *abi.EmptyValu
 	stakerAddr := rt.Caller()
 
 	rt.StateTransaction(&st, func() {
-		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap)
+		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available rewards")
 
 		err = st.updateAvailableReward(availableRewardMap, stakerAddr, params.AmountRequested.Neg())
@@ -326,13 +326,13 @@ func (a Actor) OnEpochTickEnd(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 
 	rt.StateTransaction(&st, func() {
 		// 1. unlocked locked principals、 update available principals、update stake powers
-		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap)
+		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load locked principal map")
 
-		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available principals")
 
-		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap)
+		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load stake powers")
 
 		lpKeys, err := lockedPrincipalMap.CollectKeys()
@@ -380,10 +380,10 @@ func (a Actor) OnEpochTickEnd(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 		st.StakePowerMap = sp
 
 		// 2. unlock vesting and update available reward
-		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap)
+		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available rewards")
 
-		vestingRewardMap, err := adt.AsMap(store, st.VestingRewardMap)
+		vestingRewardMap, err := adt.AsMap(store, st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load vesting rewards")
 		vrKeys, err := vestingRewardMap.CollectKeys()
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to collect vesting rewards keys")

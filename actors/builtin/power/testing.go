@@ -56,7 +56,7 @@ func CheckStateInvariants(st *State, store adt.Store) (*StateSummary, *builtin.M
 
 func CheckCronInvariants(st *State, store adt.Store, acc *builtin.MessageAccumulator) CronEventsByAddress {
 	byAddress := make(CronEventsByAddress)
-	queue, err := adt.AsMultimap(store, st.CronEventQueue)
+	queue, err := adt.AsMultimap(store, st.CronEventQueue, builtin.DefaultHamtBitwidth)
 	if err != nil {
 		acc.Addf("error loading cron event queue: %v", err)
 		// Bail here.
@@ -89,7 +89,7 @@ func CheckCronInvariants(st *State, store adt.Store, acc *builtin.MessageAccumul
 
 func CheckClaimInvariants(st *State, store adt.Store, acc *builtin.MessageAccumulator) ClaimsByAddress {
 	byAddress := make(ClaimsByAddress)
-	claims, err := adt.AsMap(store, st.Claims)
+	claims, err := adt.AsMap(store, st.Claims, builtin.DefaultHamtBitwidth)
 	if err != nil {
 		acc.Addf("error loading power claims: %v", err)
 		// Bail here
@@ -151,7 +151,7 @@ func CheckProofValidationInvariants(st *State, store adt.Store, claims ClaimsByA
 	}
 
 	proofs := make(ProofsByAddress)
-	if queue, err := adt.AsMultimap(store, *st.ProofValidationBatch); err != nil {
+	if queue, err := adt.AsMultimap(store, *st.ProofValidationBatch, builtin.DefaultHamtBitwidth); err != nil {
 		acc.Addf("error loading proof validation queue: %v", err)
 	} else {
 		err = queue.ForAll(func(key string, arr *adt.Array) error {

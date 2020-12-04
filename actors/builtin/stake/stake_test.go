@@ -99,7 +99,7 @@ func TestStake(t *testing.T) {
 		actor.deposit(rt, abi.ChainEpoch(4), staker1, abi.NewTokenAmount(100_000_000))
 		actor.onEpochTickEnd(rt, abi.ChainEpoch(4))
 		st = getState(rt)
-		lockedPrincipalMap, err := adt.AsMap(rt.AdtStore(), st.LockedPrincipalMap)
+		lockedPrincipalMap, err := adt.AsMap(rt.AdtStore(), st.LockedPrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		lockedPrincipals, found, err := st.LoadLockedPrincipals(rt.AdtStore(), lockedPrincipalMap, staker1)
 		assert.True(t, found)
@@ -112,7 +112,7 @@ func TestStake(t *testing.T) {
 		actor.deposit(rt, abi.ChainEpoch(5), staker2, abi.NewTokenAmount(200_000_000))
 		actor.onEpochTickEnd(rt, abi.ChainEpoch(5))
 		st = getState(rt)
-		lockedPrincipalMap, err = adt.AsMap(rt.AdtStore(), st.LockedPrincipalMap)
+		lockedPrincipalMap, err = adt.AsMap(rt.AdtStore(), st.LockedPrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		lockedPrincipals, found, err = st.LoadLockedPrincipals(rt.AdtStore(), lockedPrincipalMap, staker1)
 		assert.True(t, found)
@@ -149,7 +149,7 @@ func TestStake(t *testing.T) {
 		st = getState(rt)
 		assert.Equal(t, abi.NewTokenAmount(3_000_000), st.LastRoundReward)
 
-		availablePrincipalMap, err := adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		var ap1 abi.TokenAmount
 		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
@@ -161,7 +161,7 @@ func TestStake(t *testing.T) {
 		}
 		st = getState(rt)
 		assert.Equal(t, abi.NewStoragePower(300_000_000), st.TotalStakePower)
-		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
 		assert.Nil(t, err)
@@ -173,7 +173,7 @@ func TestStake(t *testing.T) {
 		assert.False(t, found)
 
 		assert.Equal(t, abi.NewStakePower(300_000_000), st.TotalStakePower)
-		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		vfsr1, found, err := st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
 		assert.Nil(t, err)
@@ -187,7 +187,7 @@ func TestStake(t *testing.T) {
 
 		actor.onEpochTickEnd(rt, abi.ChainEpoch(36))
 		st = getState(rt)
-		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = availablePrincipalMap.Get(abi.AddrKey(staker2), &ap2)
 		assert.Nil(t, err)
@@ -196,7 +196,7 @@ func TestStake(t *testing.T) {
 
 		actor.withdrawPrincipal(rt, abi.ChainEpoch(36), staker1, abi.NewTokenAmount(30_000_000))
 		st = getState(rt)
-		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
 		assert.Nil(t, err)
@@ -233,7 +233,7 @@ func TestStake(t *testing.T) {
 			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
 		}
 		st := getState(rt)
-		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		vfsr1, found, err := st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
 		assert.Nil(t, err)
@@ -271,7 +271,7 @@ func TestStake(t *testing.T) {
 			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
 		}
 		st := getState(rt)
-		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		vfsr1, found, err := st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
 		assert.Nil(t, err)
@@ -281,7 +281,7 @@ func TestStake(t *testing.T) {
 			total1 = big.Add(total1, vf.Amount)
 		}
 		assert.Equal(t, abi.NewTokenAmount(1_000_000), total1)
-		availablePrincipalMap, err := adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		var ap1 abi.TokenAmount
 		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
@@ -289,7 +289,7 @@ func TestStake(t *testing.T) {
 		assert.True(t, found)
 		assert.Equal(t, abi.NewTokenAmount(100_000_000), ap1)
 		var sp1 abi.StakePower
-		stakePowerMap, err := adt.AsMap(rt.AdtStore(), st.StakePowerMap)
+		stakePowerMap, err := adt.AsMap(rt.AdtStore(), st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = stakePowerMap.Get(abi.AddrKey(staker1), &sp1)
 		assert.Nil(t, err)
@@ -299,14 +299,14 @@ func TestStake(t *testing.T) {
 		actor.withdrawPrincipal(rt, abi.ChainEpoch(36), staker1, abi.NewTokenAmount(100_000_000))
 		actor.onEpochTickEnd(rt, abi.ChainEpoch(36))
 		st = getState(rt)
-		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
 		assert.Nil(t, err)
 		assert.True(t, found)
 		assert.Equal(t, abi.NewTokenAmount(0), ap1)
 
-		stakePowerMap, err = adt.AsMap(rt.AdtStore(), st.StakePowerMap)
+		stakePowerMap, err = adt.AsMap(rt.AdtStore(), st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = stakePowerMap.Get(abi.AddrKey(staker1), &sp1)
 		assert.Nil(t, err)
@@ -314,7 +314,7 @@ func TestStake(t *testing.T) {
 		assert.Equal(t, abi.NewTokenAmount(0), sp1)
 
 		var ar1 abi.TokenAmount
-		availableRewardMap, err := adt.AsMap(rt.AdtStore(), st.AvailableRewardMap)
+		availableRewardMap, err := adt.AsMap(rt.AdtStore(), st.AvailableRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = availableRewardMap.Get(abi.AddrKey(staker1), &ar1)
 		assert.Nil(t, err)
@@ -325,14 +325,14 @@ func TestStake(t *testing.T) {
 			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
 		}
 		st = getState(rt)
-		availableRewardMap, err = adt.AsMap(rt.AdtStore(), st.AvailableRewardMap)
+		availableRewardMap, err = adt.AsMap(rt.AdtStore(), st.AvailableRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = availableRewardMap.Get(abi.AddrKey(staker1), &ar1)
 		assert.Nil(t, err)
 		assert.True(t, found)
 		assert.Equal(t, abi.NewTokenAmount(1_000_000), ar1)
 
-		vestingRewardMap, err = adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		vestingRewardMap, err = adt.AsMap(rt.AdtStore(), st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		vfsr1, found, err = st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
 		assert.Nil(t, err)
@@ -344,7 +344,7 @@ func TestStake(t *testing.T) {
 			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
 		}
 		st = getState(rt)
-		vestingRewardMap, err = adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		vestingRewardMap, err = adt.AsMap(rt.AdtStore(), st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		vfsr1, found, err = st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
 		assert.Nil(t, err)
@@ -355,7 +355,7 @@ func TestStake(t *testing.T) {
 		}
 		assert.Equal(t, abi.NewTokenAmount(1_000_000), total1)
 
-		stakePowerMap, err = adt.AsMap(rt.AdtStore(), st.StakePowerMap)
+		stakePowerMap, err = adt.AsMap(rt.AdtStore(), st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		assert.Nil(t, err)
 		found, err = stakePowerMap.Get(abi.AddrKey(staker1), &sp1)
 		assert.Nil(t, err)
