@@ -8,24 +8,25 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	"github.com/filecoin-project/go-state-types/cbor"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/go-state-types/rt"
-	"github.com/filecoin-project/specs-actors/v2/actors/states"
 	"github.com/ipfs/go-cid"
+	"github.com/minio/blake2b-simd"
 	"github.com/pkg/errors"
 
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	init_ "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
+	"github.com/filecoin-project/specs-actors/v2/actors/states"
 	"github.com/filecoin-project/specs-actors/v2/actors/util/adt"
+	"github.com/filecoin-project/specs-actors/v2/support/ipld"
 	"github.com/filecoin-project/specs-actors/v2/support/testing"
 )
 
@@ -33,15 +34,18 @@ var EmptyObjectCid cid.Cid
 
 // Context for an individual message invocation, including inter-actor sends.
 type invocationContext struct {
-	rt                *VM
-	topLevel          *topLevelContext
-	msg               InternalMessage // The message being processed
-	fromActor         *states.Actor   // The immediate calling actor
-	toActor           *states.Actor   // The actor to which message is addressed
-	emptyObject       cid.Cid
-	isCallerValidated bool
-	allowSideEffects  bool
-	callerValidated   bool
+	rt               *VM
+	topLevel         *topLevelContext
+	msg              InternalMessage // The message being processed
+	fromActor        *states.Actor   // The immediate calling actor
+	toActor          *states.Actor   // The actor to which message is addressed
+	emptyObject      cid.Cid
+	allowSideEffects bool
+	callerValidated  bool
+	// Maps (references to) loaded state objs to their expected cid.
+	// Used for detecting modifications to state outside of transactions.
+	stateUsedObjs map[cbor.Marshaler]cid.Cid
+	stats         *CallStats
 }
 
 // Context for a top-level invocation sequence
@@ -49,19 +53,22 @@ type topLevelContext struct {
 	originatorStableAddress address.Address // Stable (public key) address of the top-level message sender.
 	originatorCallSeq       uint64          // Call sequence number of the top-level message.
 	newActorAddressCount    uint64          // Count of calls to NewActorAddress (mutable).
+	statsSource             StatsSource     // optional source of external statistics that can be used to profile calls
 }
 
 func newInvocationContext(rt *VM, topLevel *topLevelContext, msg InternalMessage, fromActor *states.Actor, emptyObject cid.Cid) invocationContext {
 	// Note: the toActor and stateHandle are loaded during the `invoke()`
 	return invocationContext{
-		rt:                rt,
-		topLevel:          topLevel,
-		msg:               msg,
-		fromActor:         fromActor,
-		emptyObject:       emptyObject,
-		isCallerValidated: false,
-		allowSideEffects:  true,
-		toActor:           nil,
+		rt:               rt,
+		topLevel:         topLevel,
+		msg:              msg,
+		fromActor:        fromActor,
+		toActor:          nil,
+		emptyObject:      emptyObject,
+		allowSideEffects: true,
+		callerValidated:  false,
+		stateUsedObjs:    map[cbor.Marshaler]cid.Cid{},
+		stats:            NewCallStats(topLevel.statsSource),
 	}
 }
 
@@ -144,12 +151,14 @@ func (ic *invocationContext) StateCreate(obj cbor.Marshaler) {
 	}
 	actr.Head = c
 	ic.storeActor(actr)
+	ic.stateUsedObjs[obj] = c // Track the expected CID of the object.
 }
 
 // Readonly is the implementation of the ActorStateHandle interface.
 func (ic *invocationContext) StateReadonly(obj cbor.Unmarshaler) {
 	// Load state to obj.
-	ic.loadState(obj)
+	c := ic.loadState(obj)
+	ic.stateUsedObjs[obj.(cbor.Marshaler)] = c // Track the expected CID of the object.
 }
 
 // Transaction is the implementation of the ActorStateHandle interface.
@@ -157,6 +166,7 @@ func (ic *invocationContext) StateTransaction(obj cbor.Er, f func()) {
 	if obj == nil {
 		ic.Abortf(exitcode.SysErrorIllegalActor, "Must not pass nil to Transaction()")
 	}
+	ic.checkStateObjectsUnmodified()
 
 	// Load state to obj.
 	ic.loadState(obj)
@@ -166,7 +176,8 @@ func (ic *invocationContext) StateTransaction(obj cbor.Er, f func()) {
 	f()
 	ic.allowSideEffects = true
 
-	ic.replace(obj)
+	c := ic.replace(obj)
+	ic.stateUsedObjs[obj] = c // Track the expected CID of the object.
 }
 
 func (ic *invocationContext) VerifySignature(signature crypto.Signature, signer address.Address, plaintext []byte) error {
@@ -206,7 +217,14 @@ func (ic *invocationContext) CurrEpoch() abi.ChainEpoch {
 }
 
 func (ic *invocationContext) CurrentBalance() abi.TokenAmount {
-	return ic.toActor.Balance
+	// load balance
+	act, found, err := ic.rt.GetActor(ic.msg.to)
+	if err != nil {
+		ic.Abortf(exitcode.ErrIllegalState, "could not load to actor %v: %v", ic.msg.to, err)
+	} else if !found {
+		ic.Abortf(exitcode.ErrIllegalState, "could not find to actor %v", ic.msg.to)
+	}
+	return act.Balance
 }
 
 func (ic *invocationContext) GetActorCodeCID(a address.Address) (cid.Cid, bool) {
@@ -305,7 +323,13 @@ func (ic *invocationContext) Send(toAddr address.Address, methodNum abi.MethodNu
 		ic.Abortf(exitcode.SysErrorIllegalActor, "Calling Send() is not allowed during side-effect lock")
 	}
 	from := ic.msg.to
-	fromActor := ic.toActor
+	fromActor, found, err := ic.rt.GetActor(from)
+	if err != nil {
+		ic.Abortf(exitcode.ErrIllegalState, "could not retrieve send actor %v for internal send: %v", from, err)
+	} else if !found {
+		ic.Abortf(exitcode.ErrIllegalState, "could not find send actor %v for internal send", from)
+	}
+
 	newMsg := InternalMessage{
 		from:   from,
 		to:     toAddr,
@@ -316,7 +340,10 @@ func (ic *invocationContext) Send(toAddr address.Address, methodNum abi.MethodNu
 
 	newCtx := newInvocationContext(ic.rt, ic.topLevel, newMsg, fromActor, ic.emptyObject)
 	ret, code := newCtx.invoke()
-	err := ret.Into(out)
+
+	ic.stats.MergeSubStat(newCtx.toActor.Code, newMsg.method, newCtx.stats)
+
+	err = ret.Into(out)
 	if err != nil {
 		ic.Abortf(exitcode.ErrSerialization, "failed to serialize send return value into output parameter")
 	}
@@ -435,8 +462,8 @@ func (s fakeSyscalls) VerifySignature(_ crypto.Signature, _ address.Address, _ [
 	return nil
 }
 
-func (s fakeSyscalls) HashBlake2b(_ []byte) [32]byte {
-	return [32]byte{}
+func (s fakeSyscalls) HashBlake2b(b []byte) [32]byte {
+	return blake2b.Sum256(b)
 }
 
 func (s fakeSyscalls) ComputeUnsealedSectorCID(_ abi.RegisteredSealProof, _ []abi.PieceInfo) (cid.Cid, error) {
@@ -520,6 +547,8 @@ func (ic *invocationContext) invoke() (ret returnWrapper, errcode exitcode.ExitC
 	// Install handler for abort, which rolls back all state changes from this and any nested invocations.
 	// This is the only path by which a non-OK exit code may be returned.
 	defer func() {
+		ic.stats.Capture()
+
 		if r := recover(); r != nil {
 			if err := ic.rt.rollback(priorRoot); err != nil {
 				panic(err)
@@ -594,6 +623,8 @@ func (ic *invocationContext) invoke() (ret returnWrapper, errcode exitcode.ExitC
 	}
 	ret = returnWrapper{inner: marsh}
 
+	ic.checkStateObjectsUnmodified()
+
 	// 3. success!
 	ic.rt.endInvocation(exitcode.Ok, marsh)
 	return ret, exitcode.Ok
@@ -605,7 +636,7 @@ func (ic *invocationContext) dispatch(actor runtime.VMActor, method abi.MethodNu
 
 	// get method entry
 	methodIdx := (uint64)(method)
-	if len(exports) < (int)(methodIdx) {
+	if len(exports) <= (int)(methodIdx) {
 		return nil, fmt.Errorf("method undefined. method: %d, Exitcode: %s", method, actor.Code())
 	}
 	entry := exports[methodIdx]
@@ -724,6 +755,9 @@ func (ic *invocationContext) resolveTarget(target address.Address) (*states.Acto
 
 		newCtx := newInvocationContext(ic.rt, ic.topLevel, newMsg, nil, ic.emptyObject)
 		_, code := newCtx.invoke()
+
+		ic.stats.MergeSubStat(builtin.InitActorCodeID, builtin.MethodsAccount.Constructor, newCtx.stats)
+
 		if code.IsError() {
 			// we failed to construct an account actor..
 			ic.Abortf(code, "failed to construct account actor")
@@ -765,6 +799,21 @@ func (ic *invocationContext) replace(obj cbor.Marshaler) cid.Cid {
 		ic.rt.Abortf(exitcode.ErrIllegalState, "could not save actor %s", ic.msg.to)
 	}
 	return c
+}
+
+// Checks that state objects weren't modified outside of transaction.
+func (ic *invocationContext) checkStateObjectsUnmodified() {
+	for obj, expectedKey := range ic.stateUsedObjs { // nolint:nomaprange
+		// Recompute the CID of the object and check it's the same as was recorded
+		// when the object was loaded.
+		finalKey, _, err := ipld.MarshalCBOR(obj)
+		if err != nil {
+			ic.Abortf(exitcode.SysErrorIllegalActor, "error marshalling state object for validation: %v", err)
+		}
+		if finalKey != expectedKey {
+			ic.Abortf(exitcode.SysErrorIllegalActor, "State mutated outside of transaction scope")
+		}
+	}
 }
 
 func decodeBytes(t reflect.Type, argBytes []byte) (interface{}, error) {

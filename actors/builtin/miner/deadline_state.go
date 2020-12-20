@@ -685,7 +685,7 @@ func (dl *Deadline) DeclareFaults(
 
 	// Record partitions with some fault, for subsequently indexing in the deadline.
 	// Duplicate entries don't matter, they'll be stored in a bitfield (a set).
-	partitionsWithFault := make([]uint64, 0, len(partitionSectors))
+	partitionsWithFault := make([]uint64, 0, partitionSectors.Length())
 	powerDelta = NewPowerPairZero()
 	if err := partitionSectors.ForEach(func(partIdx uint64, sectorNos bitfield.BitField) error {
 		var partition Partition
@@ -902,6 +902,7 @@ func (dl *Deadline) RecordProvenSectors(
 
 	// Accumulate sectors info for proof verification.
 	for _, post := range postPartitions {
+		// Note: In v3 we can remove this check because it will be rejected in the actor method.
 		alreadyProven, err := dl.PostSubmissions.IsSet(post.Index)
 		if err != nil {
 			return nil, xc.ErrIllegalState.Wrapf("failed to check if partition %d already posted: %w", post.Index, err)
