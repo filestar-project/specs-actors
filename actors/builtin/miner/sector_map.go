@@ -102,7 +102,7 @@ func (dm DeadlineSectorMap) Deadlines() []uint64 {
 	for dlIdx := range dm.M { //nolint:nomaprange
 		deadlines = append(deadlines, dlIdx)
 	}
-	if dm.Version < network.Version9 {
+	if dm.Version < network.Version7 {
 		sort.Slice(deadlines, func(i, j int) bool {
 			return i < j
 		})
@@ -164,7 +164,7 @@ func (pm PartitionSectorMap) Partitions() []uint64 {
 	for partIdx := range pm.M { //nolint:nomaprange
 		partitions = append(partitions, partIdx)
 	}
-	if pm.Version < network.Version9 {
+	if pm.Version < network.Version7 {
 		sort.Slice(partitions, func(i, j int) bool {
 			return i < j
 		})
