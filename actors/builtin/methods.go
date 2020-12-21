@@ -11,9 +11,11 @@ const (
 )
 
 var MethodsAccount = struct {
-	Constructor   abi.MethodNum
-	PubkeyAddress abi.MethodNum
-}{MethodConstructor, 2}
+	Constructor    abi.MethodNum
+	PubkeyAddress  abi.MethodNum
+	CreateContract abi.MethodNum
+	CallContract   abi.MethodNum
+}{MethodConstructor, 2, 3, 4}
 
 var MethodsInit = struct {
 	Constructor abi.MethodNum

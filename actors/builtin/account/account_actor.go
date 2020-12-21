@@ -17,6 +17,8 @@ func (a Actor) Exports() []interface{} {
 	return []interface{}{
 		1: a.Constructor,
 		2: a.PubkeyAddress,
+		3: a.CreateContract,
+		4: a.CallContract,
 	}
 }
 

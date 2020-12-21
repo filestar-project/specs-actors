@@ -10,6 +10,7 @@ require (
 	github.com/filecoin-project/go-hamt-ipld/v2 v2.0.0
 	github.com/filecoin-project/go-state-types v0.0.0-20201013222834-41ea465f274f
 	github.com/filecoin-project/specs-actors v0.9.12
+	github.com/filestar-project/evm-adapter v0.0.1
 	github.com/ipfs/go-block-format v0.0.2
 	github.com/ipfs/go-cid v0.0.7
 	github.com/ipfs/go-ipld-cbor v0.0.4
@@ -23,3 +24,5 @@ require (
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 )
+
+replace github.com/filestar-project/evm-adapter => gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20201209123326-27e6f57c5212
