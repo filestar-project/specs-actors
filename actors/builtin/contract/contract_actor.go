@@ -1,17 +1,17 @@
 package contract
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
-	"sync"
+	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/filecoin-project/go-address"
-	addr "github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-state-types/abi"
 	lotusbig "github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
@@ -31,6 +31,8 @@ func (a Actor) Exports() []interface{} {
 	return []interface{}{
 		1: a.Constructor,
 		2: a.CallContract,
+		3: a.GetCode,
+		4: a.GetStorageAt,
 	}
 }
 
@@ -45,49 +47,23 @@ func (a Actor) State() cbor.Er {
 var _ runtime.VMActor = Actor{}
 
 type State struct {
-	Address addr.Address
+	Address address.Address
 }
 
 // PathToRepo path to repo from command params
 var PathToRepo string
 
-type databaseSingleton struct {
-	levelDB types.Database
-}
-
-type StateDBPointer struct {
-	Statedb types.StateDB
-	Clean   bool
-}
-
-var pointer StateDBPointer
-var database *databaseSingleton
-var once sync.Once
-
-func getLevelDB(rt runtime.Runtime) *databaseSingleton {
-	once.Do(func() {
-		if len(PathToRepo) == 0 {
-			// if no path provided, open LevelDB in tmp random dir
-			randBytes := make([]byte, 16)
-			if _, err := rand.Read(randBytes); err != nil {
-				rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
-				return
-			}
-			PathToRepo = filepath.Join(os.TempDir(), hex.EncodeToString(randBytes))
-			if err := os.MkdirAll(PathToRepo, os.ModePerm); err != nil {
-				rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
-				return
-			}
+func setRandomPath() error {
+	if len(PathToRepo) == 0 {
+		// if no path provided, open LevelDB in tmp random dir
+		randBytes := make([]byte, 16)
+		if _, err := rand.Read(randBytes); err != nil {
+			return err
 		}
-		db, err := state.OpenDatabase(PathToRepo)
-		if err != nil {
-			rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
-			return
-		}
-		rt.Log(rtt.DEBUG, "Opened LevelDB for Ethereum VM on path %v", PathToRepo)
-		database = &databaseSingleton{db}
-	})
-	return database
+		PathToRepo = filepath.Join(os.TempDir(), hex.EncodeToString(randBytes))
+		return os.MkdirAll(PathToRepo, os.ModePerm)
+	}
+	return nil
 }
 
 type EvmLogs struct {
@@ -95,7 +71,7 @@ type EvmLogs struct {
 	// address of the contract that generated the event
 	Address types.Address
 	// list of topics provided by the contract.
-	Topics []byte
+	Topics []types.Hash
 	// supplied by the contract, usually ABI-encoded
 	Data []byte
 
@@ -110,12 +86,22 @@ func newEvmLogs(logs []types.Log) []EvmLogs {
 		result[i].Address = log.Address
 		result[i].Data = log.Data
 		result[i].Removed = log.Removed
-		result[i].Topics = []byte{}
-		for _, topic := range log.Topics {
-			result[i].Topics = append(result[i].Topics, topic.Bytes()...)
-		}
+		result[i].Topics = log.Topics
 	}
 	return result
+}
+
+func ConvertEvmLogs(logs []EvmLogs) []types.Log {
+	evmLogs := make([]types.Log, len(logs))
+	for i, log := range logs {
+		evmLogs[i] = types.Log{
+			Address: log.Address,
+			Topics:  log.Topics,
+			Data:    log.Data,
+			Removed: log.Removed,
+		}
+	}
+	return evmLogs
 }
 
 func getFormatLogs(logs []types.Log) string {
@@ -134,11 +120,95 @@ func getFormatLogs(logs []types.Log) string {
 	return result
 }
 
+type StateContractInfo struct {
+	Root   types.Hash
+	Height int
+}
+
+type stateDBManager struct {
+	StateContractInfo
+	LevelDB types.Database
+	Statedb types.StateDB
+}
+
+var dbManager stateDBManager
+
+func InitStateDBManager() error {
+	dbManager.Statedb = nil
+	err := dbManager.setLevelDB()
+	if err != nil {
+		return err
+	}
+	dbManager.Root, err = state.GetRoot(dbManager.LevelDB)
+	return err
+}
+
+func InitStateDB(root types.Hash, adapter *evmAdapter, config *types.Config) error {
+	statedb, err := state.New(root.FixedBytes(), dbManager.LevelDB, adapter, config)
+	dbManager.Statedb = statedb
+	return err
+}
+
+func (manager *stateDBManager) setLevelDB() error {
+	err := setRandomPath()
+	if err != nil {
+		return err
+	}
+	db, err := state.OpenDatabase(PathToRepo)
+	if err != nil {
+		return err
+	}
+	manager.LevelDB = db
+	return nil
+}
+
+func SaveContractInfo() error {
+	if dbManager.Statedb != nil {
+		root, err := dbManager.Statedb.Commit(false)
+		dbManager.Root = types.ConvertHash(root)
+		if err != nil {
+			return err
+		}
+	}
+	return state.SaveRoot(dbManager.LevelDB, dbManager.Root.FixedBytes())
+}
+
+func GetCurrentHeight() int {
+	return dbManager.Height
+}
+
+func IsMaxHeight(height int) bool {
+	return dbManager.Height < height
+}
+
+func UpdateCurrentHeight(height int) {
+	if IsMaxHeight(height) {
+		dbManager.Height = height
+	}
+}
+
+func ReInitStateDBForHeight(height int64) error {
+	rootManager, err := GetStateRootManager()
+	if err != nil {
+		return err
+	}
+	// Empty root, if root in the current height doesn't exist
+	// Otherwise copy root to the manager
+	root, err := rootManager.GetRoot(strconv.FormatInt(int64(height), 16))
+	if err == nil {
+		dbManager.Root = types.BytesToHash(root)
+	}
+	if dbManager.Statedb != nil {
+		return dbManager.Statedb.Reset(common.BytesToHash(root))
+	}
+	return nil
+}
+
 type ContractParams struct {
-	Code         []byte
-	Value        lotusbig.Int
-	Salt         []byte
-	CommitStatus bool
+	Code   []byte
+	Value  lotusbig.Int
+	Salt   []byte
+	Commit bool
 }
 
 type ContractResult struct {
@@ -146,6 +216,20 @@ type ContractResult struct {
 	GasUsed int64
 	Address types.Address
 	Logs    []EvmLogs
+}
+
+type StorageInfo struct {
+	Address  address.Address
+	Position string
+	Root     []byte
+}
+
+type StorageResult struct {
+	Value []byte
+}
+
+type GetCodeResult struct {
+	Code string
 }
 
 // Creates new EVM configuration
@@ -166,13 +250,40 @@ func newEvmConfig(rt runtime.Runtime, root types.Hash, params *ContractParams) *
 		Salt: params.Salt,
 
 		// This fields used by logs:
-		BlockHash:    types.BytesToHash([]byte{123}),
-		TrxHash:      types.BytesToHash([]byte{121}),
-		TrxIndex:     321,
-		CommitStatus: params.CommitStatus,
+		BlockHash: types.BytesToHash([]byte{123}),
+		TrxHash:   types.BytesToHash([]byte{121}),
+		TrxIndex:  321,
 		// Root hash of stateDB
 		RootHash: root,
+		// CommitStatus: params.Commit,
 	}
+}
+
+func constructEvmObject(rt runtime.Runtime, params *ContractParams) *evm.EVM {
+	root := dbManager.Root
+	config := newEvmConfig(rt, root, params)
+
+	// construct proxy object and EVM
+	adapter := newEvmAdapter(rt)
+	// Init only once, when daemon starts
+	if dbManager.Statedb == nil {
+		err := InitStateDB(config.RootHash, adapter, config)
+		if err != nil {
+			rt.Abortf(exitcode.ErrIllegalState, "Failed init of new StateDB object %v", err)
+			return nil
+		}
+	}
+	evmObj, err := evm.NewEVM(adapter, dbManager.Statedb, config)
+
+	if err != nil {
+		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
+		return nil
+	}
+	return evmObj
+}
+
+func getCurrentStateRoot() types.Hash {
+	return dbManager.Root
 }
 
 func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *ContractResult {
@@ -182,6 +293,10 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "contractActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
 	addr, err := PrecomputeContractAddress(rt.Origin(), params.Code, params.Salt)
+	if err != nil {
+		rt.Abortf(exitcode.ErrForbidden, "Can't Precompute contract address!!!")
+		return nil
+	}
 	st := State{Address: addr}
 	rt.StateCreate(&st)
 	switch rt.Origin().Protocol() {
@@ -191,65 +306,36 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	default:
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 or Actor addresses allowed in Caller! Current address protocol: %v", rt.Origin().Protocol())
 	}
-
-	params.CommitStatus = (pointer.Statedb == nil) && params.CommitStatus
-	db := getLevelDB(rt).levelDB
-	root, err := state.GetRoot(db)
-	if err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM (can't get root) %v", err)
-		return nil
-	}
-	config := newEvmConfig(rt, root, params)
-
-	// construct proxy object and EVM
-	var evmObj *evm.EVM
-	adapter := newEvmAdapter(rt, params.CommitStatus)
-
-	if pointer.Statedb != nil {
-		evmObj, err = evm.NewEVM(adapter, pointer.Statedb, config)
-	} else {
-		statedb, err := state.New(config.RootHash.FixedBytes(), db, adapter, config)
-		if err != nil {
-			rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new StateDB object %v", err)
-			return nil
-		}
-		evmObj, err = evm.NewEVM(adapter, statedb, config)
-	}
-
-	if err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
-		return nil
-	}
+	evmObj := constructEvmObject(rt, params)
+	snap := dbManager.Statedb.Snapshot()
 	// instruct EVM to create the contract
 	gasLimit := rt.GasLimit()
 	result, err := evmObj.CreateContract(params.Code, uint64(gasLimit), params.Value.Int)
-	if pointer.Clean {
-		pointer.Clean = false
-		pointer.Statedb = nil
-	}
 	if err != nil {
+		dbManager.Statedb.RevertToSnapshot(snap)
 		rt.Abortf(exitcode.ErrForbidden, "Failed create contract, got %v", err)
 		return nil
 	}
-
 	// construct result which is being returned
 	ret := &ContractResult{}
 	ret.Value = result.Value
 	ret.GasUsed = int64(gasLimit - result.GasLeft)
 	ret.Address = result.Address
 	// charge gas counted by EVM for contract creation
+	if !dbManager.Statedb.Exist(ret.Address.GetCommonAddress()) {
+		rt.Abortf(exitcode.ErrForbidden, "Failed create contract, addr = %v, got %v", ret.Address, err)
+	}
 	rt.ChargeGas("OnCreateContract", ret.GasUsed, 0)
 	// Add logs from evm
 	ret.Logs = newEvmLogs(evmObj.GetLogs())
 	rt.Log(rtt.INFO, getFormatLogs(evmObj.GetLogs()))
-	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
+	if params.Commit {
+		appendLogs(ret.Logs)
+		//Compute root and save changes for intermediate state in Runtime
+		dbManager.Statedb.IntermediateRoot(false)
 		return ret
 	}
-	// Save root to database
-	if err := state.SaveRoot(db, result.Root.FixedBytes()); err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
-		return nil
-	}
+	dbManager.Statedb.RevertToSnapshot(snap)
 	return ret
 }
 
@@ -267,45 +353,14 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	if rt.RecieverAddress().Protocol() != address.Actor {
 		rt.Abortf(exitcode.ErrForbidden, "Only Actor addresses allowed in Reciever! Current address protocol: %v", rt.RecieverAddress().Protocol())
 	}
-
-	params.CommitStatus = (pointer.Statedb == nil) && params.CommitStatus
-
-	db := getLevelDB(rt).levelDB
-	root, err := state.GetRoot(db)
-	if err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM (can't get root) %v", err)
-		return nil
-	}
-	config := newEvmConfig(rt, root, params)
-
-	// construct proxy object and EVM
-	var evmObj *evm.EVM
-	adapter := newEvmAdapter(rt, params.CommitStatus)
-
-	if pointer.Statedb != nil {
-		evmObj, err = evm.NewEVM(adapter, pointer.Statedb, config)
-	} else {
-		statedb, err := state.New(config.RootHash.FixedBytes(), db, adapter, config)
-		if err != nil {
-			rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new StateDB object %v", err)
-			return nil
-		}
-		evmObj, err = evm.NewEVM(adapter, statedb, config)
-	}
-	if err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
-		return nil
-	}
-
+	evmObj := constructEvmObject(rt, params)
+	snap := dbManager.Statedb.Snapshot()
 	// instruct EVM to call the contract
 	gasLimit := rt.GasLimit()
 	receiver := types.BytesToAddress(rt.RecieverAddress().Payload())
 	result, err := evmObj.CallContract(receiver, params.Code, uint64(gasLimit), params.Value.Int)
-	if pointer.Clean {
-		pointer.Clean = false
-		pointer.Statedb = nil
-	}
 	if err != nil {
+		dbManager.Statedb.RevertToSnapshot(snap)
 		rt.Abortf(exitcode.ErrForbidden, "Failed call contract, got %v", err)
 		return nil
 	}
@@ -321,13 +376,46 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	// Add logs from evm
 	ret.Logs = newEvmLogs(evmObj.GetLogs())
 	rt.Log(rtt.INFO, getFormatLogs(evmObj.GetLogs()))
-	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
+	if params.Commit {
+		appendLogs(ret.Logs)
+		//Compute root and save changes for intermediate state in Runtime
+		dbManager.Statedb.IntermediateRoot(false)
 		return ret
 	}
-	// Save root to database
-	if err := state.SaveRoot(db, result.Root.FixedBytes()); err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
+	dbManager.Statedb.RevertToSnapshot(snap)
+	return ret
+}
+
+func (a Actor) GetCode(rt runtime.Runtime, _ *abi.EmptyValue) *GetCodeResult {
+	receiver := types.BytesToAddress(rt.RecieverAddress().Payload())
+	rt.Log(rtt.DEBUG, "contractActor.GetCode, addr = %s", hex.EncodeToString(receiver.Bytes()))
+	rt.ValidateImmediateCallerAcceptAny()
+	config := newEvmConfig(rt, dbManager.Root, &ContractParams{})
+	adapter := newEvmAdapter(rt)
+	statedb, err := state.New(config.RootHash.FixedBytes(), dbManager.LevelDB, adapter, config)
+	if err != nil {
+		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new StateDB object %v", err)
 		return nil
 	}
-	return ret
+	return &GetCodeResult{Code: hex.EncodeToString(statedb.GetCode(receiver.GetCommonAddress()))}
+}
+
+func (a Actor) GetStorageAt(rt runtime.Runtime, params *StorageInfo) *StorageResult {
+	receiver := types.BytesToAddress(rt.RecieverAddress().Payload())
+	rt.Log(rtt.DEBUG, "contractActor.GetCode, addr = %s", hex.EncodeToString(receiver.Bytes()))
+	rt.ValidateImmediateCallerAcceptAny()
+	root := types.BytesToHash(params.Root)
+	if len(params.Root) == 0 {
+		root = dbManager.Root
+	}
+	rt.Log(rtt.DEBUG, "contractActor.GetCode, root = %s", hex.EncodeToString(root[:]))
+	config := newEvmConfig(rt, root, &ContractParams{})
+	adapter := newEvmAdapter(rt)
+	statedb, err := state.New(config.RootHash.FixedBytes(), dbManager.LevelDB, adapter, config)
+	if err != nil {
+		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new StateDB object %v", err)
+		return nil
+	}
+	value := statedb.GetState(convertAddressTypes(params.Address).FixedBytes(), common.HexToHash(params.Position))
+	return &StorageResult{Value: value[:]}
 }

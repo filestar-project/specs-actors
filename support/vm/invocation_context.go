@@ -162,7 +162,9 @@ func (ic *invocationContext) DeleteContractActor(a address.Address) {}
 
 // NewContractActorAddress implements runtime.NewContractActorAddress
 // TODO: stub for now
-func (ic *invocationContext) NewContractActorAddress(code []byte) (address.Address, []byte) {}
+func (ic *invocationContext) NewContractActorAddress(code []byte) (address.Address, []byte) {
+	return address.Undef, []byte{}
+}
 
 // Receiver implements runtime.Message
 func (ic *invocationContext) Receiver() address.Address {
@@ -344,8 +346,8 @@ func (ic *invocationContext) NewActorAddress() address.Address {
 	}
 	return actorAddress
 }
-func (ic *invocationContext) SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode) {
-	return 0
+func (ic *invocationContext) SendMarshalled(toAddr address.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode) {
+	return []byte{}, 0
 }
 
 // Send implements runtime.InvocationContext.
@@ -381,6 +383,12 @@ func (ic *invocationContext) Send(toAddr address.Address, methodNum abi.MethodNu
 	}
 	return code
 }
+
+func (ic *invocationContext) GetNonce(addr address.Address) uint64 {
+	return 0
+}
+
+func (ic *invocationContext) SetNonce(addr address.Address, nonce uint64) {}
 
 // CreateActor implements runtime.ExtendedInvocationContext.
 func (ic *invocationContext) CreateActor(codeID cid.Cid, addr address.Address) {

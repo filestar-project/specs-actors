@@ -318,7 +318,14 @@ func (rt *Runtime) GetRandomnessFromTickets(tag crypto.DomainSeparationTag, epoc
 }
 
 func (rt *Runtime) SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode) {
+	return []byte{}, 0
+}
+
+func (rt *Runtime) GetNonce(toAddr addr.Address) uint64 {
 	return 0
+}
+
+func (rt *Runtime) SetNonce(toAddr addr.Address, value uint64) {
 }
 
 func (rt *Runtime) Send(toAddr addr.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) exitcode.ExitCode {
@@ -746,7 +753,9 @@ func (rt *Runtime) DeleteContractActor(a addr.Address) {}
 
 // NewContractActorAddress implements runtime.NewContractActorAddress
 // TODO: stub for now
-func (rt *Runtime) NewContractActorAddress(code []byte) (addr.Address, []byte) {}
+func (rt *Runtime) NewContractActorAddress(code []byte) (addr.Address, []byte) {
+	return addr.Address{}, []byte{}
+}
 
 ///// Trace span implementation /////
 

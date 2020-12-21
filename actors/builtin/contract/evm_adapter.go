@@ -5,10 +5,14 @@ import (
 	"math/big"
 
 	"github.com/holiman/uint256"
+	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
+	peer "github.com/libp2p/go-libp2p-peer"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
+	"github.com/filecoin-project/go-multistore"
 	"github.com/filecoin-project/go-state-types/abi"
 	stateBig "github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
@@ -27,13 +31,11 @@ var log = logging.Logger("evm-adapter")
 // providing access to FileStar chain for EVM contracts
 type evmAdapter struct {
 	runtime.Runtime
-	canCommit bool
 }
 
-func newEvmAdapter(rt runtime.Runtime, canCommit bool) *evmAdapter {
+func newEvmAdapter(rt runtime.Runtime) *evmAdapter {
 	r := &evmAdapter{}
 	r.Runtime = rt
-	r.canCommit = canCommit
 	return r
 }
 
@@ -117,13 +119,10 @@ func convertAddress(addr types.Address, protocol byte) (address.Address, error) 
 	return newAddress, nil
 }
 
-func convertAddresstypes(addr types.Address, protocol byte) (address.Address, error) {
-	addrWithPrefix := append([]byte{protocol}, addr.Bytes()...)
-	newAddress, err := address.NewFromBytes(addrWithPrefix)
-	if err != nil {
-		return address.Address{}, err
-	}
-	return newAddress, nil
+func convertAddressTypes(addr address.Address) types.Address {
+	newAddress := &types.Address{}
+	newAddress.SetBytes(addr.Bytes()[1:])
+	return *newAddress
 }
 
 // PrecomputeContractAddress - precompute contract address, based on caller address and contract code
@@ -147,6 +146,13 @@ func (e *evmAdapter) CallAddress(addr types.Address, method uint256.Int, params 
 	if err != nil {
 		return []byte{}, xerrors.Errorf("address = %x not found", addr.FixedBytes())
 	}
+	actorCode, ok := e.Runtime.GetActorCodeCID(actorAddr)
+	if !ok {
+		return []byte{}, xerrors.Errorf("can't get actor code, address = %x", addr.FixedBytes())
+	}
+	if actorCode == builtin.ContractActorCodeID {
+		return []byte{}, xerrors.Errorf("call contract actor address = %x", addr.FixedBytes())
+	}
 	result, exitCode := e.Runtime.SendMarshalled(actorAddr, abi.MethodNum(method.Uint64()), abi.NewTokenAmount(0), params)
 	if exitCode != 0 {
 		return []byte{}, xerrors.Errorf("Unsuccessful call address %v", addr.FixedBytes())
@@ -160,7 +166,7 @@ func (e *evmAdapter) CreateContract(from types.Address, code []byte, salt []byte
 	if err != nil {
 		return []byte{}, from, 0, xerrors.Errorf("failed to convert bigInt to lotus stateBig: %w", err)
 	}
-	contractParams, err := actors.SerializeParams(&ContractParams{Code: code, Value: value, Salt: salt, CommitStatus: e.canCommit})
+	contractParams, err := actors.SerializeParams(&ContractParams{Code: code, Value: value, Salt: salt, Commit: true})
 	if err != nil {
 		return []byte{}, from, 0, xerrors.Errorf("failed to serialize contract create params: %w", err)
 	}
@@ -194,18 +200,48 @@ func (e *evmAdapter) GetNonce(addr types.Address) uint64 {
 func (e *evmAdapter) SetNonce(addr types.Address, value uint64) {
 	a, err := e.tryGetActorAddress(addr)
 	if err != nil {
-		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot GetNonce(%x), error = %v", addr.Bytes(), err)
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot SetNonce(%x), error = %v", addr.Bytes(), err)
 	}
 	e.Runtime.SetNonce(a, value)
 	log.Debugf("evm-adapter::SetNonce(%x, %v)", addr.Bytes(), value)
 }
 
-//  SetStateDB
-func (e *evmAdapter) SetStateDB(db types.StateDB) {
-	pointer.Statedb = db
+func (e *evmAdapter) ImportLocalStorage(path string, car bool) (multistore.StoreID, cid.Cid, error) {
+	return e.Runtime.ImportLocalStorage(path, car)
 }
 
-//  SetCleanPointer
-func (e *evmAdapter) SetCleanPointer(needClean bool) {
-	pointer.Clean = needClean
+func (e *evmAdapter) DropLocalStorage(ids []multistore.StoreID) error {
+	return e.Runtime.DropLocalStorage(ids)
+}
+
+func (e *evmAdapter) ListLocalImports() ([]runtime.Import, error) {
+	return e.Runtime.ListLocalImports()
+}
+
+func (e *evmAdapter) FindData(root cid.Cid, pieceCid *cid.Cid) ([]runtime.QueryOffer, bool, error) {
+	return e.Runtime.FindData(root, pieceCid)
+}
+
+func (e *evmAdapter) RetrieveData(params runtime.RetrieveParams) error {
+	return e.Runtime.RetrieveData(params)
+}
+
+func (e *evmAdapter) InitDeal(params runtime.InitDealParams) (*cid.Cid, error) {
+	return e.Runtime.InitDeal(params)
+}
+
+func (e *evmAdapter) QueryAsk(maddr address.Address, pid peer.ID) (*storagemarket.StorageAsk, error) {
+	return e.Runtime.QueryAsk(maddr, pid)
+}
+
+func (e *evmAdapter) ListDeals() ([]runtime.DealInfo, error) {
+	return e.Runtime.ListDeals()
+}
+
+func (e *evmAdapter) GetDeal(propCid cid.Cid) (runtime.Deal, error) {
+	return e.Runtime.GetDeal(propCid)
+}
+
+func (e *evmAdapter) ListAsks() ([]*storagemarket.StorageAsk, error) {
+	return e.Runtime.ListAsks()
 }
