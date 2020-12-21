@@ -20,6 +20,7 @@ import (
 func BuiltinActors() []runtime.VMActor {
 	return []runtime.VMActor{
 		account.Actor{},
+		contract.Actor{},
 		cron.Actor{},
 		init_.Actor{},
 		market.Actor{},

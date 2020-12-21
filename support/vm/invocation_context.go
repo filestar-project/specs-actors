@@ -136,6 +136,34 @@ func (ic *invocationContext) Caller() address.Address {
 	return ic.msg.Caller()
 }
 
+// Origin implements runtime.Origin
+func (ic *invocationContext) Origin() address.Address {
+	return ic.msg.Caller()
+}
+
+// Origin implements runtime.RecieverAddress
+func (ic *invocationContext) RecieverAddress() address.Address {
+	return ic.msg.Receiver()
+}
+
+// GetActorBalance implements runtime.GetActorBalance
+// TODO: stub for now
+func (ic *invocationContext) GetActorBalance(address.Address) big.Int {
+	return ic.toActor.Balance
+}
+
+// TransferTokens implements runtime.TransferTokens
+// TODO: stub for now
+func (ic *invocationContext) TransferTokens(from, to address.Address, value big.Int) {}
+
+// DeleteContractActor implements runtime.DeleteContractActor
+// TODO: stub for now
+func (ic *invocationContext) DeleteContractActor(a address.Address) {}
+
+// NewContractActorAddress implements runtime.NewContractActorAddress
+// TODO: stub for now
+func (ic *invocationContext) NewContractActorAddress(code []byte) (address.Address, []byte) {}
+
 // Receiver implements runtime.Message
 func (ic *invocationContext) Receiver() address.Address {
 	return ic.msg.Receiver()
@@ -316,6 +344,9 @@ func (ic *invocationContext) NewActorAddress() address.Address {
 	}
 	return actorAddress
 }
+func (ic *invocationContext) SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode) {
+	return 0
+}
 
 // Send implements runtime.InvocationContext.
 func (ic *invocationContext) Send(toAddr address.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) (errcode exitcode.ExitCode) {
@@ -418,6 +449,11 @@ func (ic *invocationContext) Context() context.Context {
 
 func (ic *invocationContext) ChargeGas(_ string, _ int64, _ int64) {
 	// no-op
+}
+
+// TODO: stub for now
+func (ic *invocationContext) GasLimit() uint64 {
+	return 100e6
 }
 
 // Starts a new tracing span. The span must be End()ed explicitly, typically with a deferred invocation.

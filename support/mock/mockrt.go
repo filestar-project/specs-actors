@@ -317,6 +317,10 @@ func (rt *Runtime) GetRandomnessFromTickets(tag crypto.DomainSeparationTag, epoc
 	return exp.out
 }
 
+func (rt *Runtime) SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode) {
+	return 0
+}
+
 func (rt *Runtime) Send(toAddr addr.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) exitcode.ExitCode {
 	rt.requireInCall()
 	if rt.inTransaction {
@@ -718,6 +722,32 @@ func (rt *Runtime) Log(level rt.LogLevel, msg string, args ...interface{}) {
 	rt.logs = append(rt.logs, fmt.Sprintf(msg, args...))
 }
 
+func (rt *Runtime) Origin() addr.Address {
+	return addr.Address{}
+}
+
+func (rt *Runtime) RecieverAddress() addr.Address {
+	return rt.Receiver()
+}
+
+// GetActorBalance implements runtime.GetActorBalance
+// TODO: stub for now
+func (rt *Runtime) GetActorBalance(addr.Address) big.Int {
+	return rt.balance
+}
+
+// TransferTokens implements runtime.TransferTokens
+// TODO: stub for now
+func (rt *Runtime) TransferTokens(from, to addr.Address, value big.Int) {}
+
+// DeleteContractActor implements runtime.DeleteContractActor
+// TODO: stub for now
+func (rt *Runtime) DeleteContractActor(a addr.Address) {}
+
+// NewContractActorAddress implements runtime.NewContractActorAddress
+// TODO: stub for now
+func (rt *Runtime) NewContractActorAddress(code []byte) (addr.Address, []byte) {}
+
 ///// Trace span implementation /////
 
 type TraceSpan struct {
@@ -1113,6 +1143,11 @@ func (rt *Runtime) failTestNow(msg string, args ...interface{}) {
 
 func (rt *Runtime) ChargeGas(_ string, gas, _ int64) {
 	rt.gasCharged += gas
+}
+
+// TODO: stub for now
+func (rt *Runtime) GasLimit() uint64 {
+	return 100e6
 }
 
 func getMethodName(code cid.Cid, num abi.MethodNum) string {

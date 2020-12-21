@@ -1,6 +1,8 @@
 package init
 
 import (
+	"bytes"
+
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/cbor"
@@ -21,6 +23,7 @@ func (a Actor) Exports() []interface{} {
 	return []interface{}{
 		builtin.MethodConstructor: a.Constructor,
 		2:                         a.Exec,
+		3:                         a.ExecWithResult,
 	}
 }
 
@@ -61,7 +64,9 @@ type ExecParams = init0.ExecParams
 //}
 type ExecReturn = init0.ExecReturn
 
-func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
+// execPreparation function for prepare sends in exec functions
+func (a Actor) execPreparation(rtPointer *runtime.Runtime, params *ExecParams) (addr.Address, addr.Address) {
+	rt := *rtPointer
 	rt.ValidateImmediateCallerAcceptAny()
 	callerCodeCID, ok := rt.GetActorCodeCID(rt.Caller())
 	builtin.RequireState(rt, ok, "no code for caller at %s", rt.Caller())
@@ -69,11 +74,32 @@ func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
 		rt.Abortf(exitcode.ErrForbidden, "caller type %v cannot exec actor type %v", callerCodeCID, params.CodeCID)
 	}
 
-	// Compute a re-org-stable address.
-	// This address exists for use by messages coming from outside the system, in order to
-	// stably address the newly created actor even if a chain re-org causes it to end up with
-	// a different ID.
-	uniqueAddress := rt.NewActorAddress()
+	var uniqueAddress addr.Address
+	if params.CodeCID != builtin.ContractActorCodeID {
+		// Compute a re-org-stable address.
+		// This address exists for use by messages coming from outside the system, in order to
+		// stably address the newly created actor even if a chain re-org causes it to end up with
+		// a different ID.
+		uniqueAddress = rt.NewActorAddress()
+	} else {
+		// For contract actor we have some different rules about address generation
+		// Deserialize ContractParms
+		var contractParams contract.ContractParams
+		if err := contractParams.UnmarshalCBOR(bytes.NewReader(params.ConstructorParams)); err == nil {
+			var salt []byte
+			uniqueAddress, salt = rt.NewContractActorAddress(contractParams.Code)
+			contractParams.Salt = salt
+
+			buf := new(bytes.Buffer)
+			if err := contractParams.MarshalCBOR(buf); err != nil {
+				rt.Abortf(exitcode.ErrForbidden, "cannot serialize params in contract creation %v", contractParams)
+			}
+
+			params.ConstructorParams = buf.Bytes()
+		} else {
+			rt.Abortf(exitcode.ErrForbidden, "cannot deserialize contract params with CID %v", params.CodeCID)
+		}
+	}
 
 	// Allocate an ID for this actor.
 	// Store mapping of pubkey or actor address to actor ID
@@ -87,7 +113,25 @@ func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
 
 	// Create an empty actor.
 	rt.CreateActor(params.CodeCID, idAddr)
+	return idAddr, uniqueAddress
+}
 
+// Special Exec method for actors, whose can return some extra values from constructor
+// Traditional Exec discard this value
+func (a Actor) ExecWithResult(rt runtime.Runtime, params *ExecParams) *contract.ContractResult {
+	idAddr, _ := a.execPreparation(&rt, params)
+	// Invoke constructor.
+	ret, code := rt.SendMarshalled(idAddr, builtin.MethodConstructor, rt.ValueReceived(), builtin.CBORBytes(params.ConstructorParams))
+	builtin.RequireSuccess(rt, code, "constructor failed")
+	var result contract.ContractResult
+	if err := result.UnmarshalCBOR(bytes.NewReader(ret)); err != nil {
+		rt.Abortf(exitcode.ErrSerialization, "failed to unmarshal return value: %s", err)
+	}
+	return &result
+}
+
+func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
+	idAddr, uniqueAddress := a.execPreparation(&rt, params)
 	// Invoke constructor.
 	code := rt.Send(idAddr, builtin.MethodConstructor, builtin.CBORBytes(params.ConstructorParams), rt.ValueReceived(), &builtin.Discard{})
 	builtin.RequireSuccess(rt, code, "constructor failed")
@@ -102,7 +146,7 @@ func canExec(callerCodeID cid.Cid, execCodeID cid.Cid) bool {
 			return true
 		}
 		return false
-	case builtin.PaymentChannelActorCodeID, builtin.MultisigActorCodeID:
+	case builtin.PaymentChannelActorCodeID, builtin.MultisigActorCodeID, builtin.ContractActorCodeID:
 		return true
 	default:
 		return false
