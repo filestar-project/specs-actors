@@ -95,13 +95,20 @@ type ConstructorParams = power.MinerConstructorParams
 
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
+	nv := rt.NetworkVersion()
 
 	checkControlAddresses(rt, params.ControlAddrs)
 	checkPeerInfo(rt, params.PeerId, params.Multiaddrs)
 
-	_, ok := SupportedProofTypes[params.SealProofType]
-	if !ok {
-		rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
+	if params.SealProofType == abi.RegisteredSealProof_StackedDrg8GiBV1 {
+		if nv < network.Version7 {
+			rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
+		}
+	} else {
+		_, ok := SupportedProofTypes[params.SealProofType]
+		if !ok {
+			rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
+		}
 	}
 
 	owner := resolveControlAddress(rt, params.OwnerAddr)
@@ -499,9 +506,17 @@ type PreCommitSectorParams = miner0.SectorPreCommitInfo
 // Proposals must be posted on chain via sma.PublishStorageDeals before PreCommitSector.
 // Optimization: PreCommitSector could contain a list of deals that are not published yet.
 func (a Actor) PreCommitSector(rt Runtime, params *PreCommitSectorParams) *abi.EmptyValue {
-	if _, ok := SupportedProofTypes[params.SealProof]; !ok {
-		rt.Abortf(exitcode.ErrIllegalArgument, "unsupported seal proof type: %s", params.SealProof)
+	nv := rt.NetworkVersion()
+	if params.SealProof == abi.RegisteredSealProof_StackedDrg8GiBV1 {
+		if nv < network.Version7 {
+			rt.Abortf(exitcode.ErrIllegalArgument, "unsupported seal proof type: %s", params.SealProof)
+		}
+	} else {
+		if _, ok := SupportedProofTypes[params.SealProof]; !ok {
+			rt.Abortf(exitcode.ErrIllegalArgument, "unsupported seal proof type: %s", params.SealProof)
+		}
 	}
+
 	if params.SectorNumber > abi.MaxSectorNumber {
 		rt.Abortf(exitcode.ErrIllegalArgument, "sector number %d out of range 0..(2^63-1)", params.SectorNumber)
 	}
