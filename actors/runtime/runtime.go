@@ -138,8 +138,14 @@ type Runtime interface {
 	// in total gas charged if amount of gas charged was to be changed.
 	ChargeGas(name string, gas int64, virtual int64)
 
+	// Current gas limit
+	GasLimit() int64
+
 	// Note events that may make debugging easier
 	Log(level rt.LogLevel, msg string, args ...interface{})
+
+	// Returns address, that starts invoke the chain
+	Origin() addr.Address
 }
 
 // Store defines the storage module exposed to actors.

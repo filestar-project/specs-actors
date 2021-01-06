@@ -77,6 +77,7 @@ type Runtime struct {
 	logs []string
 	// Gas charged explicitly through rt.ChargeGas. Note: most charges are implicit
 	gasCharged int64
+	gasLimit   int64
 }
 
 type expectBatchVerifySeals struct {
@@ -701,6 +702,10 @@ func (rt *Runtime) Log(level rt.LogLevel, msg string, args ...interface{}) {
 	rt.logs = append(rt.logs, fmt.Sprintf(msg, args...))
 }
 
+func (rt *Runtime )Origin() addr.Address {
+	return addr.Address{}
+}
+
 ///// Trace span implementation /////
 
 type TraceSpan struct {
@@ -1103,6 +1108,10 @@ func (rt *Runtime) failTestNow(msg string, args ...interface{}) {
 
 func (rt *Runtime) ChargeGas(_ string, gas, _ int64) {
 	rt.gasCharged += gas
+}
+
+func (rt *Runtime) GasLimit() int64 {
+	return rt.gasLimit
 }
 
 func getMethodName(code cid.Cid, num abi.MethodNum) string {

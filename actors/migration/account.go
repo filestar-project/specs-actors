@@ -20,8 +20,11 @@ func (m accountMigrator) MigrateState(ctx context.Context, store cbor.IpldStore,
 		return nil, err
 	}
 
-	outState := account2.State(inState) // Identical
+	var outState account2.State
+	outState.Address = inState.Address
+
 	newHead, err := store.Put(ctx, &outState)
+
 	return &StateMigrationResult{
 		NewHead:  newHead,
 		Transfer: big.Zero(),

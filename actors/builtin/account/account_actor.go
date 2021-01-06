@@ -5,6 +5,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	"github.com/filestar-project/evm-adapter/evm/types"
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
@@ -32,8 +33,12 @@ func (a Actor) State() cbor.Er {
 
 var _ runtime.VMActor = Actor{}
 
+type StorageValue struct{ Value []byte }
+
 type State struct {
-	Address addr.Address
+	Address  addr.Address
+	Contract types.Address
+	Storage  map[string]StorageValue
 }
 
 func (a Actor) Constructor(rt runtime.Runtime, address *addr.Address) *abi.EmptyValue {
