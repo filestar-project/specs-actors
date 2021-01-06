@@ -10,6 +10,8 @@ import (
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	multisig0 "github.com/filecoin-project/specs-actors/actors/builtin/multisig"
+	multisig2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/multisig"
+
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
@@ -71,14 +73,13 @@ func (a Actor) State() cbor.Er {
 
 var _ runtime.VMActor = Actor{}
 
-// Changed since v0:
-// - Added StartEpoch
-type ConstructorParams struct {
-	Signers               []addr.Address
-	NumApprovalsThreshold uint64
-	UnlockDuration        abi.ChainEpoch
-	StartEpoch            abi.ChainEpoch
-}
+// type ConstructorParams struct {
+// 	Signers               []addr.Address
+// 	NumApprovalsThreshold uint64
+// 	UnlockDuration        abi.ChainEpoch
+// 	StartEpoch            abi.ChainEpoch
+// }
+type ConstructorParams = multisig2.ConstructorParams
 
 func (a Actor) Constructor(rt runtime.Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
@@ -547,11 +548,11 @@ func executeTransactionIfApproved(rt runtime.Runtime, st State, txnID TxnID, txn
 			ptx, err := adt.AsMap(adt.AsStore(rt), st.PendingTxns, builtin.DefaultHamtBitwidth)
 			builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load pending transactions")
 
-			// Prior to version 6 we attempt to delete all transactions, even those
-			// no longer in the pending txns map because they have been purged.
+			// Starting at version 6 we first check if the transaction exists before
+			// deleting. This allows 1 out of n multisig swaps and removes initiated
+			// by the swapped/removed signer to go through without an illegal state error
 			txnExists, err := ptx.Has(txnID)
 			builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to check existance of transaction %v for cleanup", txnID)
-
 			if txnExists {
 				if err := ptx.Delete(txnID); err != nil {
 					rt.Abortf(exitcode.ErrIllegalState, "failed to delete transaction for cleanup: %v", err)

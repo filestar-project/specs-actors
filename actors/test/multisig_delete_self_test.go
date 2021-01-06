@@ -5,21 +5,22 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	init_ "github.com/filecoin-project/specs-actors/v3/actors/builtin/init"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin/multisig"
+	"github.com/filecoin-project/specs-actors/v3/support/ipld"
 	vm "github.com/filecoin-project/specs-actors/v3/support/vm"
 )
 
 func TestMultisigDeleteSelf2Of3RemovedIsProposer(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 3, big.Mul(big.NewInt(10_000), big.NewInt(1e18)), 93837778)
 
 	multisigParams := multisig.ConstructorParams{
@@ -70,7 +71,7 @@ func TestMultisigDeleteSelf2Of3RemovedIsProposer(t *testing.T) {
 
 func TestMultisigDeleteSelf2Of3RemovedIsApprover(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 3, big.Mul(big.NewInt(10_000), big.NewInt(1e18)), 93837778)
 
 	multisigParams := multisig.ConstructorParams{
@@ -121,7 +122,7 @@ func TestMultisigDeleteSelf2Of3RemovedIsApprover(t *testing.T) {
 
 func TestMultisigDeleteSelf2Of2(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 2, big.Mul(big.NewInt(10_000), big.NewInt(1e18)), 93837778)
 
 	multisigParams := multisig.ConstructorParams{
@@ -168,9 +169,9 @@ func TestMultisigDeleteSelf2Of2(t *testing.T) {
 	assert.Equal(t, exitcode.ErrNotFound, code)
 }
 
-func TestV5MultisigSwapsSelf2Of3(t *testing.T) {
+func TestMultisigSwapsSelf2Of3(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 4, big.Mul(big.NewInt(10_000), big.NewInt(1e18)), 93837778)
 	alice := addrs[0]
 	bob := addrs[1]
@@ -247,7 +248,7 @@ func TestV5MultisigSwapsSelf2Of3(t *testing.T) {
 
 func TestMultisigDeleteSigner1Of2(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 2, big.Mul(big.NewInt(10_000), big.NewInt(1e18)), 93837778)
 
 	multisigParams := multisig.ConstructorParams{
@@ -289,7 +290,7 @@ func TestMultisigDeleteSigner1Of2(t *testing.T) {
 
 func TestMultisigSwapsSelf1Of2(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 3, big.Mul(big.NewInt(10_000), big.NewInt(1e18)), 93837778)
 	alice := addrs[0]
 	bob := addrs[1]
@@ -331,5 +332,4 @@ func TestMultisigSwapsSelf1Of2(t *testing.T) {
 
 	// alice succeeds when trying to execute the transaction swapping alice for chuck
 	vm.ApplyOk(t, v, alice, multisigAddr, big.Zero(), builtin.MethodsMultisig.Propose, &proposeSwapSignerParams)
-
 }
