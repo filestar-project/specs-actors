@@ -129,6 +129,16 @@ func (ic *invocationContext) Caller() address.Address {
 	return ic.msg.Caller()
 }
 
+// Origin implements runtime.Origin
+func (ic *invocationContext) Origin() address.Address {
+	return ic.msg.Caller()
+}
+
+// Origin implements runtime.OriginReciever
+func (ic *invocationContext) OriginReciever() address.Address {
+	return ic.msg.Receiver()
+}
+
 // Receiver implements runtime.Message
 func (ic *invocationContext) Receiver() address.Address {
 	return ic.msg.Receiver()

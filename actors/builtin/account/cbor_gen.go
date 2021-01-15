@@ -5,7 +5,6 @@ package account
 import (
 	"fmt"
 	"io"
-	"sort"
 
 	cbg "github.com/whyrusleeping/cbor-gen"
 	xerrors "golang.org/x/xerrors"
@@ -13,77 +12,7 @@ import (
 
 var _ = xerrors.Errorf
 
-var lengthBufStorageValue = []byte{129}
-
-func (t *StorageValue) MarshalCBOR(w io.Writer) error {
-	if t == nil {
-		_, err := w.Write(cbg.CborNull)
-		return err
-	}
-	if _, err := w.Write(lengthBufStorageValue); err != nil {
-		return err
-	}
-
-	scratch := make([]byte, 9)
-
-	// t.Value ([]uint8) (slice)
-	if len(t.Value) > cbg.ByteArrayMaxLen {
-		return xerrors.Errorf("Byte array in field t.Value was too long")
-	}
-
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajByteString, uint64(len(t.Value))); err != nil {
-		return err
-	}
-
-	if _, err := w.Write(t.Value[:]); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (t *StorageValue) UnmarshalCBOR(r io.Reader) error {
-	*t = StorageValue{}
-
-	br := cbg.GetPeeker(r)
-	scratch := make([]byte, 8)
-
-	maj, extra, err := cbg.CborReadHeaderBuf(br, scratch)
-	if err != nil {
-		return err
-	}
-	if maj != cbg.MajArray {
-		return fmt.Errorf("cbor input should be of type array")
-	}
-
-	if extra != 1 {
-		return fmt.Errorf("cbor input had wrong number of fields")
-	}
-
-	// t.Value ([]uint8) (slice)
-
-	maj, extra, err = cbg.CborReadHeaderBuf(br, scratch)
-	if err != nil {
-		return err
-	}
-
-	if extra > cbg.ByteArrayMaxLen {
-		return fmt.Errorf("t.Value: byte array too large (%d)", extra)
-	}
-	if maj != cbg.MajByteString {
-		return fmt.Errorf("expected byte array")
-	}
-
-	if extra > 0 {
-		t.Value = make([]uint8, extra)
-	}
-
-	if _, err := io.ReadFull(br, t.Value[:]); err != nil {
-		return err
-	}
-	return nil
-}
-
-var lengthBufState = []byte{131}
+var lengthBufState = []byte{130}
 
 func (t *State) MarshalCBOR(w io.Writer) error {
 	if t == nil {
@@ -113,42 +42,6 @@ func (t *State) MarshalCBOR(w io.Writer) error {
 	if _, err := w.Write(t.Contract[:]); err != nil {
 		return err
 	}
-
-	// t.Storage (map[string]account.StorageValue) (map)
-	{
-		if len(t.Storage) > 4096 {
-			return xerrors.Errorf("cannot marshal t.Storage map too large")
-		}
-
-		if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajMap, uint64(len(t.Storage))); err != nil {
-			return err
-		}
-
-		keys := make([]string, 0, len(t.Storage))
-		for k := range t.Storage {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			v := t.Storage[k]
-
-			if len(k) > cbg.MaxLength {
-				return xerrors.Errorf("Value in field k was too long")
-			}
-
-			if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajTextString, uint64(len(k))); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(w, string(k)); err != nil {
-				return err
-			}
-
-			if err := v.MarshalCBOR(w); err != nil {
-				return err
-			}
-
-		}
-	}
 	return nil
 }
 
@@ -166,7 +59,7 @@ func (t *State) UnmarshalCBOR(r io.Reader) error {
 		return fmt.Errorf("cbor input should be of type array")
 	}
 
-	if extra != 3 {
+	if extra != 2 {
 		return fmt.Errorf("cbor input had wrong number of fields")
 	}
 
@@ -201,47 +94,6 @@ func (t *State) UnmarshalCBOR(r io.Reader) error {
 
 	if _, err := io.ReadFull(br, t.Contract[:]); err != nil {
 		return err
-	}
-	// t.Storage (map[string]account.StorageValue) (map)
-
-	maj, extra, err = cbg.CborReadHeaderBuf(br, scratch)
-	if err != nil {
-		return err
-	}
-	if maj != cbg.MajMap {
-		return fmt.Errorf("expected a map (major type 5)")
-	}
-	if extra > 4096 {
-		return fmt.Errorf("t.Storage: map too large")
-	}
-
-	t.Storage = make(map[string]StorageValue, extra)
-
-	for i, l := 0, int(extra); i < l; i++ {
-
-		var k string
-
-		{
-			sval, err := cbg.ReadStringBuf(br, scratch)
-			if err != nil {
-				return err
-			}
-
-			k = string(sval)
-		}
-
-		var v StorageValue
-
-		{
-
-			if err := v.UnmarshalCBOR(br); err != nil {
-				return xerrors.Errorf("unmarshaling v: %w", err)
-			}
-
-		}
-
-		t.Storage[k] = v
-
 	}
 	return nil
 }

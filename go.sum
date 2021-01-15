@@ -175,6 +175,8 @@ github.com/minio/sha256-simd v0.0.0-20190131020904-2d45a736cd16/go.mod h1:2FMWW+
 github.com/minio/sha256-simd v0.1.1-0.20190913151208-6de447530771/go.mod h1:B5e1o+1/KgNmWrSQK08Y6Z1Vb5pwIktudl0J58iy0KM=
 github.com/minio/sha256-simd v0.1.1 h1:5QHSlgo3nt5yKOJrC7W8w7X+NFl8cMPZm96iu8kKUJU=
 github.com/minio/sha256-simd v0.1.1/go.mod h1:B5e1o+1/KgNmWrSQK08Y6Z1Vb5pwIktudl0J58iy0KM=
+github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=
+github.com/mitchellh/go-homedir v1.1.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
 github.com/mr-tron/base58 v1.1.0/go.mod h1:xcD2VGqlgYjBdcBLw+TuYLr8afG+Hj8g2eTVqeSzSU8=
 github.com/mr-tron/base58 v1.1.2/go.mod h1:BinMc/sQntlIE1frQmRFPUoPA1Zkr8VRgBdjWI2mNwc=
 github.com/mr-tron/base58 v1.1.3 h1:v+sk57XuaCKGXpWtVBX8YJzO7hMGx4Aajh4TQbdEFdc=
@@ -296,6 +298,12 @@ gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20201224134413-e43740ca7e36 
 gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20201224134413-e43740ca7e36/go.mod h1:3Xp/gw8oKCl7k15lwyhepWhywPn/V1ASHiijdyw/Blw=
 gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20201228132838-764c974df370 h1:EXdO7C6W+86FwypecZLDttaUQsZz0Hiavb+4dfov9xA=
 gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20201228132838-764c974df370/go.mod h1:56TXv3DQdHw7FiKhVeybHTkNZZqklssZHQxsW6OvZGY=
+gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210114111531-5d2be0d416ed h1:fT9X3aUBt77SDn5x9nNMVgfooQgrjv9TTXM/hHW2pGo=
+gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210114111531-5d2be0d416ed/go.mod h1:lOJ/A0ZG2drcsUa4rHVnO8tQqP1jyt2lyjuKiIIjtf4=
+gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210114133554-32049da4ac23 h1:I7ypaKqSN0xq3DbONypG/QRR1M/62J5WxV9dWltIZwk=
+gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210114133554-32049da4ac23/go.mod h1:lOJ/A0ZG2drcsUa4rHVnO8tQqP1jyt2lyjuKiIIjtf4=
+gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210115145500-f8e08694988b h1:R3j82Tv0AAZUCZ9IVc6es4DbApBMFwNPVkPHZucnSVQ=
+gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210115145500-f8e08694988b/go.mod h1:lOJ/A0ZG2drcsUa4rHVnO8tQqP1jyt2lyjuKiIIjtf4=
 go.uber.org/atomic v1.6.0 h1:Ezj3JGmsOnG1MoRWQkPBsKLe9DwWD9QeXzTRzzldNVk=
 go.uber.org/atomic v1.6.0/go.mod h1:sABNBOSYdrvTF6hTgEIbc7YasKWGhgEQZyfxyTvoXHQ=
 go.uber.org/multierr v1.5.0 h1:KCa4XfM8CWFCpxXRGok+Q0SS/0XBhMDbHHGABQLvD2A=

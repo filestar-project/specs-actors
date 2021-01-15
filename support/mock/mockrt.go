@@ -702,8 +702,12 @@ func (rt *Runtime) Log(level rt.LogLevel, msg string, args ...interface{}) {
 	rt.logs = append(rt.logs, fmt.Sprintf(msg, args...))
 }
 
-func (rt *Runtime )Origin() addr.Address {
+func (rt *Runtime ) Origin() addr.Address {
 	return addr.Address{}
+}
+
+func (rt *Runtime) OriginReciever() addr.Address {
+	return rt.Receiver()
 }
 
 ///// Trace span implementation /////

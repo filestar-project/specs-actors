@@ -33,12 +33,9 @@ func (a Actor) State() cbor.Er {
 
 var _ runtime.VMActor = Actor{}
 
-type StorageValue struct{ Value []byte }
-
 type State struct {
 	Address  addr.Address
 	Contract types.Address
-	Storage  map[string]StorageValue
 }
 
 func (a Actor) Constructor(rt runtime.Runtime, address *addr.Address) *abi.EmptyValue {

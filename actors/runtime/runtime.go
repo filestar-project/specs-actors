@@ -146,6 +146,9 @@ type Runtime interface {
 
 	// Returns address, that starts invoke the chain
 	Origin() addr.Address
+
+	// Returns origin address-reciever of message
+	OriginReciever() addr.Address
 }
 
 // Store defines the storage module exposed to actors.
