@@ -3,7 +3,6 @@ module github.com/filecoin-project/specs-actors/v2
 go 1.13
 
 require (
-	github.com/ethereum/go-ethereum v1.9.24
 	github.com/filecoin-project/go-address v0.0.3
 	github.com/filecoin-project/go-amt-ipld/v2 v2.1.0
 	github.com/filecoin-project/go-bitfield v0.2.0
@@ -20,8 +19,6 @@ require (
 	github.com/minio/sha256-simd v0.1.1
 	github.com/multiformats/go-multihash v0.0.14
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.0.0-20181113130724-41aa239b4cce
-	github.com/sirupsen/logrus v1.7.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/whyrusleeping/cbor-gen v0.0.0-20200812213548-958ddffe352c
 	github.com/xorcare/golden v0.6.0
@@ -29,4 +26,4 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 )
 
-replace github.com/filestar-project/evm-adapter => gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210115145500-f8e08694988b
+replace github.com/filestar-project/evm-adapter => gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210119120718-59868886bf65

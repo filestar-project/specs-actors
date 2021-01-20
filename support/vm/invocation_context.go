@@ -139,6 +139,20 @@ func (ic *invocationContext) OriginReciever() address.Address {
 	return ic.msg.Receiver()
 }
 
+// GetActorBalance implements runtime.GetActorBalance
+// TODO: stub for now
+func (ic *invocationContext) GetActorBalance(address.Address) big.Int {
+	return ic.toActor.Balance
+}
+
+// AddActorBalance implements runtime.AddActorBalance
+// TODO: stub for now
+func (ic *invocationContext) AddActorBalance(a address.Address, value big.Int) {}
+
+// SubActorBalance implements runtime.SubActorBalance
+// TODO: stub for now
+func (ic *invocationContext) SubActorBalance(a address.Address, value big.Int) {}
+
 // Receiver implements runtime.Message
 func (ic *invocationContext) Receiver() address.Address {
 	return ic.msg.Receiver()

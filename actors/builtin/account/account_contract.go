@@ -1,6 +1,7 @@
 package account
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"math/big"
 
 	"github.com/filecoin-project/go-address"
+	lotusbig "github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filestar-project/evm-adapter/evm"
 	"github.com/filestar-project/evm-adapter/evm/state"
@@ -21,6 +23,7 @@ import (
 
 // PathToRepo path to repo from command params
 var PathToRepo string
+
 type databaseSingleton struct {
 	levelDB types.Database
 }
@@ -50,13 +53,14 @@ func getLevelDB(rt runtime.Runtime) *databaseSingleton {
 		}
 		rt.Log(rtt.DEBUG, "Opened LevelDB for Ethereum VM on path %v", PathToRepo)
 		database = &databaseSingleton{db}
-    })
+	})
 	return database
 }
 
 type ContractParams struct {
-	Code []byte
-	Salt []byte
+	Code  []byte
+	Salt  []byte
+	Value lotusbig.Int
 }
 
 type ContractResult struct {
@@ -65,7 +69,7 @@ type ContractResult struct {
 }
 
 // Creates new EVM configuration
-func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
+func newEvmConfig(rt runtime.Runtime, params *ContractParams, commitStatus bool) *types.Config {
 	// fake for now
 	caller := types.BytesToAddress(rt.Origin().Payload())
 	db := getLevelDB(rt).levelDB
@@ -88,10 +92,10 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 		Salt: params.Salt,
 
 		// This fields used by logs:
-		BlockHash: types.BytesToHash([]byte{123}),
-		TrxHash:   types.BytesToHash([]byte{121}),
-		TrxIndex:  321,
-
+		BlockHash:    types.BytesToHash([]byte{123}),
+		TrxHash:      types.BytesToHash([]byte{121}),
+		TrxIndex:     321,
+		CommitStatus: commitStatus,
 		// Root hash of stateDB
 		RootHash: root,
 		// Database for EVM
@@ -99,8 +103,16 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 	}
 }
 
-// Creates new EVM contract
 func (a Actor) CreateContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
+	return a.createContract(rt, params, true)
+}
+
+func (a Actor) CreateContractWithoutCommit(rt runtime.Runtime, params *ContractParams) *ContractResult {
+	return a.createContract(rt, params, false)
+}
+
+// Creates new EVM contract
+func (a Actor) createContract(rt runtime.Runtime, params *ContractParams, commitStatus bool) *ContractResult {
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "accountActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
 	rt.ValidateImmediateCallerAcceptAny()
@@ -108,7 +120,7 @@ func (a Actor) CreateContract(rt runtime.Runtime, params *ContractParams) *Contr
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 addresses allowed! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
-	config := newEvmConfig(rt, params)
+	config := newEvmConfig(rt, params, commitStatus)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)
@@ -120,8 +132,7 @@ func (a Actor) CreateContract(rt runtime.Runtime, params *ContractParams) *Contr
 
 	// instruct EVM to create the contract
 	gasLimit := rt.GasLimit()
-	value := rt.ValueReceived()
-	result, err := evm.CreateContract(params.Code, uint64(gasLimit), value.Int)
+	result, err := evm.CreateContract(params.Code, uint64(gasLimit), params.Value.Int)
 	if err != nil {
 		rt.Abortf(exitcode.ErrForbidden, "Failed create contract, got %v", err)
 		return nil
@@ -133,19 +144,29 @@ func (a Actor) CreateContract(rt runtime.Runtime, params *ContractParams) *Contr
 	ret.GasUsed = gasLimit - int64(result.GasLeft)
 
 	// Save root to database
+
+	// charge gas counted by EVM for contract creation
+	rt.ChargeGas("evm", ret.GasUsed, 0)
+	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
+		return ret
+	}
 	if err := state.SaveRoot(config.Database, result.Root.FixedBytes()); err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
 		return nil
 	}
-
-	// charge gas counted by EVM for contract creation
-	rt.ChargeGas("evm", ret.GasUsed, 0)
-
 	return ret
 }
 
-// Call EVM contract
 func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
+	return a.callContract(rt, params, true)
+}
+
+func (a Actor) CallContractWithoutCommit(rt runtime.Runtime, params *ContractParams) *ContractResult {
+	return a.callContract(rt, params, false)
+}
+
+// Call EVM contract
+func (a Actor) callContract(rt runtime.Runtime, params *ContractParams, commitStatus bool) *ContractResult {
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "accountActor.CallContract, code = %s", hex.EncodeToString(params.Code))
 	rt.ValidateImmediateCallerAcceptAny()
@@ -153,11 +174,7 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 addresses allowed! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
-	config := newEvmConfig(rt, params)
-
-	// fetch EVM contract address from state
-	var st State
-	rt.StateReadonly(&st)
+	config := newEvmConfig(rt, params, commitStatus)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)
@@ -169,11 +186,10 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 
 	// instruct EVM to call the contract
 	gasLimit := rt.GasLimit()
-	value := rt.ValueReceived()
 	receiver := types.BytesToAddress(rt.OriginReciever().Payload())
-	result, err := evm.CallContract(receiver, params.Code, uint64(gasLimit), value.Int)
+	result, err := evm.CallContract(receiver, params.Code, uint64(gasLimit), params.Value.Int)
 	if err != nil {
-		rt.Abortf(exitcode.ErrForbidden, "Failed create contract, got %v", err)
+		rt.Abortf(exitcode.ErrForbidden, "Failed call contract, got %v", err)
 		return nil
 	}
 
@@ -181,15 +197,16 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	ret := &ContractResult{}
 	ret.Value = result.Value
 	ret.GasUsed = gasLimit - int64(result.GasLeft)
+	// charge gas counted by EVM for this call
+	rt.ChargeGas("evm", ret.GasUsed, 0)
 
+	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
+		return ret
+	}
 	// Save root to database
 	if err := state.SaveRoot(config.Database, result.Root.FixedBytes()); err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
 		return nil
 	}
-
-	// charge gas counted by EVM for this call
-	rt.ChargeGas("evm", ret.GasUsed, 0)
-
 	return ret
 }

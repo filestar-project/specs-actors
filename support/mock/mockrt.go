@@ -710,6 +710,20 @@ func (rt *Runtime) OriginReciever() addr.Address {
 	return rt.Receiver()
 }
 
+// GetActorBalance implements runtime.GetActorBalance
+// TODO: stub for now
+func (rt *Runtime) GetActorBalance(addr.Address) big.Int {
+	return rt.balance
+}
+
+// AddActorBalance implements runtime.AddActorBalance
+// TODO: stub for now
+func (rt *Runtime) AddActorBalance(a addr.Address, value big.Int) {}
+
+// SubActorBalance implements runtime.SubActorBalance
+// TODO: stub for now
+func (rt *Runtime) SubActorBalance(a addr.Address, value big.Int) {}
+
 ///// Trace span implementation /////
 
 type TraceSpan struct {

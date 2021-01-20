@@ -19,7 +19,9 @@ func (a Actor) Exports() []interface{} {
 		1: a.Constructor,
 		2: a.PubkeyAddress,
 		3: a.CreateContract,
-		4: a.CallContract,
+		4: a.CreateContractWithoutCommit,
+		5: a.CallContract,
+		6: a.CallContractWithoutCommit,
 	}
 }
 

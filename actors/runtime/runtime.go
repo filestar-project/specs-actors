@@ -12,6 +12,8 @@ import (
 	"github.com/filecoin-project/go-state-types/rt"
 	cid "github.com/ipfs/go-cid"
 
+	"github.com/filecoin-project/go-state-types/big"
+
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
 )
 
@@ -149,6 +151,16 @@ type Runtime interface {
 
 	// Returns origin address-reciever of message
 	OriginReciever() addr.Address
+
+	// GetActorBalance get balance by address
+	// In case if actor not exist will return zero
+	GetActorBalance(addr.Address) big.Int
+
+	// AddActorBalance add balance to actor by address
+	AddActorBalance(addr.Address, big.Int)
+
+	// SubActorBalance sub balance to actor by address
+	SubActorBalance(addr.Address, big.Int)
 }
 
 // Store defines the storage module exposed to actors.

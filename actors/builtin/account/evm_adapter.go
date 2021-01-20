@@ -12,6 +12,8 @@ import (
 	"github.com/filestar-project/evm-adapter/evm/types"
 
 	"github.com/filecoin-project/go-address"
+	stateBig "github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/exitcode"
 )
 
 var log = logging.Logger("evm-adapter")
@@ -39,19 +41,46 @@ func (e *evmAdapter) GetBlockHashByNum(num uint64) types.Hash {
 
 //// Get balance by address
 func (e *evmAdapter) GetBalance(addr types.Address) *big.Int {
-	result := big.NewInt(0)
-	log.Debugf("evm-adapter::GetBalance(%v) => %v", hex.EncodeToString(addr.Bytes()), result)
-	return result
+	a, err := convertAddress(addr)
+	if err != nil {
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot convert address %x from types.Address", addr.Bytes())
+	}
+	balance := e.Runtime.GetActorBalance(a)
+	log.Debugf("evm-adapter::GetBalance(%v) => %v", hex.EncodeToString(addr.Bytes()), balance)
+	return balance.Int
 }
 
 //// Add balance by address
 func (e *evmAdapter) AddBalance(addr types.Address, value *big.Int) {
 	log.Debugf("evm-adapter::AddBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
+	msgValue := stateBig.NewFromGo(value)
+	addrConv, err := convertAddress(addr)
+	if err != nil {
+		log.Debugf("Can't convert types.address to address.address")
+	}
+
+	e.Runtime.AddActorBalance(addrConv, msgValue)
 }
 
 //// Sub balance by address
 func (e *evmAdapter) SubBalance(addr types.Address, value *big.Int) {
-	log.Debugf("evm-adapter::SetBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
+	log.Debugf("evm-adapter::SubBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
+	msgValue := stateBig.NewFromGo(value)
+	addrConv, err := convertAddress(addr)
+	if err != nil {
+		log.Debugf("Can't convert types.address to address.address")
+	}
+
+	e.Runtime.SubActorBalance(addrConv, msgValue)
+}
+
+func convertAddress(addr types.Address) (address.Address, error) {
+	addrWithPrefix := append([]byte{address.SECP256K1}, addr.Bytes()...)
+	newAddress, err := address.NewFromBytes(addrWithPrefix)
+	if err != nil {
+		return address.Address{}, err
+	}
+	return newAddress, nil
 }
 
 // PrecomputeContractAddress - precompute contract address, based on caller address and contract code
@@ -63,8 +92,7 @@ func PrecomputeContractAddress(caller address.Address, code []byte) (address.Add
 	if err != nil {
 		return address.Address{}, salt, err
 	}
-	prAddrWithPrefix := append([]byte{address.SECP256K1}, precomputedAddress.Bytes()...)
-	newAddress, err := address.NewFromBytes(prAddrWithPrefix)
+	newAddress, err := convertAddress(precomputedAddress)
 	if err != nil {
 		return address.Address{}, salt, err
 	}
