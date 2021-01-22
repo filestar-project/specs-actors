@@ -12,7 +12,7 @@ import (
 
 var _ = xerrors.Errorf
 
-var lengthBufState = []byte{130}
+var lengthBufState = []byte{129}
 
 func (t *State) MarshalCBOR(w io.Writer) error {
 	if t == nil {
@@ -23,23 +23,8 @@ func (t *State) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	scratch := make([]byte, 9)
-
 	// t.Address (address.Address) (struct)
 	if err := t.Address.MarshalCBOR(w); err != nil {
-		return err
-	}
-
-	// t.Contract (types.Address) (array)
-	if len(t.Contract) > cbg.ByteArrayMaxLen {
-		return xerrors.Errorf("Byte array in field t.Contract was too long")
-	}
-
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajByteString, uint64(len(t.Contract))); err != nil {
-		return err
-	}
-
-	if _, err := w.Write(t.Contract[:]); err != nil {
 		return err
 	}
 	return nil
@@ -59,7 +44,7 @@ func (t *State) UnmarshalCBOR(r io.Reader) error {
 		return fmt.Errorf("cbor input should be of type array")
 	}
 
-	if extra != 2 {
+	if extra != 1 {
 		return fmt.Errorf("cbor input had wrong number of fields")
 	}
 
@@ -71,29 +56,6 @@ func (t *State) UnmarshalCBOR(r io.Reader) error {
 			return xerrors.Errorf("unmarshaling t.Address: %w", err)
 		}
 
-	}
-	// t.Contract (types.Address) (array)
-
-	maj, extra, err = cbg.CborReadHeaderBuf(br, scratch)
-	if err != nil {
-		return err
-	}
-
-	if extra > cbg.ByteArrayMaxLen {
-		return fmt.Errorf("t.Contract: byte array too large (%d)", extra)
-	}
-	if maj != cbg.MajByteString {
-		return fmt.Errorf("expected byte array")
-	}
-
-	if extra != 20 {
-		return fmt.Errorf("expected array to have 20 elements")
-	}
-
-	t.Contract = [20]uint8{}
-
-	if _, err := io.ReadFull(br, t.Contract[:]); err != nil {
-		return err
 	}
 	return nil
 }

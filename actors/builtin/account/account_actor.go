@@ -5,7 +5,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filestar-project/evm-adapter/evm/types"
 	"github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
@@ -37,7 +36,6 @@ var _ runtime.VMActor = Actor{}
 
 type State struct {
 	Address  addr.Address
-	Contract types.Address
 }
 
 func (a Actor) Constructor(rt runtime.Runtime, address *addr.Address) *abi.EmptyValue {
