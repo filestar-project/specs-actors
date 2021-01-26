@@ -141,7 +141,7 @@ type Runtime interface {
 	ChargeGas(name string, gas int64, virtual int64)
 
 	// Current gas limit
-	GasLimit() int64
+	GasLimit() uint64
 
 	// Note events that may make debugging easier
 	Log(level rt.LogLevel, msg string, args ...interface{})

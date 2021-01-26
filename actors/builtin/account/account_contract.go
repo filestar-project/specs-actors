@@ -141,15 +141,14 @@ func (a Actor) createContract(rt runtime.Runtime, params *ContractParams, commit
 	// construct result which is being returned
 	ret := &ContractResult{}
 	ret.Value = result.Value
-	ret.GasUsed = gasLimit - int64(result.GasLeft)
-
-	// Save root to database
+	ret.GasUsed = int64(gasLimit - result.GasLeft)
 
 	// charge gas counted by EVM for contract creation
-	rt.ChargeGas("evm", ret.GasUsed, 0)
+	rt.ChargeGas("OnCreateContract", ret.GasUsed, 0)
 	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
 		return ret
 	}
+	// Save root to database
 	if err := state.SaveRoot(config.Database, result.Root.FixedBytes()); err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
 		return nil
@@ -196,9 +195,9 @@ func (a Actor) callContract(rt runtime.Runtime, params *ContractParams, commitSt
 	// construct result which is being returned
 	ret := &ContractResult{}
 	ret.Value = result.Value
-	ret.GasUsed = gasLimit - int64(result.GasLeft)
+	ret.GasUsed = int64(gasLimit - result.GasLeft)
 	// charge gas counted by EVM for this call
-	rt.ChargeGas("evm", ret.GasUsed, 0)
+	rt.ChargeGas("OnCallContract", ret.GasUsed, 0)
 
 	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
 		return ret

@@ -77,7 +77,6 @@ type Runtime struct {
 	logs []string
 	// Gas charged explicitly through rt.ChargeGas. Note: most charges are implicit
 	gasCharged int64
-	gasLimit   int64
 }
 
 type expectBatchVerifySeals struct {
@@ -1128,8 +1127,9 @@ func (rt *Runtime) ChargeGas(_ string, gas, _ int64) {
 	rt.gasCharged += gas
 }
 
-func (rt *Runtime) GasLimit() int64 {
-	return rt.gasLimit
+// TODO: stub for now
+func (rt *Runtime) GasLimit() uint64 {
+	return 100e6
 }
 
 func getMethodName(code cid.Cid, num abi.MethodNum) string {

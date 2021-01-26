@@ -42,7 +42,6 @@ type invocationContext struct {
 	isCallerValidated bool
 	allowSideEffects  bool
 	callerValidated   bool
-	gasLimit          int64
 }
 
 // Context for a top-level invocation sequence
@@ -417,8 +416,9 @@ func (ic *invocationContext) ChargeGas(_ string, _ int64, _ int64) {
 	// no-op
 }
 
-func (ic *invocationContext) GasLimit() int64 {
-	return ic.gasLimit
+// TODO: stub for now
+func (ic *invocationContext) GasLimit() uint64 {
+	return 100e6
 }
 
 // Starts a new tracing span. The span must be End()ed explicitly, typically with a deferred invocation.
