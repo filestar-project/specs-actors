@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -30,6 +31,50 @@ type databaseSingleton struct {
 
 var database *databaseSingleton
 var once sync.Once
+
+type EvmLogs struct {
+	// Consensus fields:
+	// address of the contract that generated the event
+	Address types.Address
+	// list of topics provided by the contract.
+	Topics []byte
+	// supplied by the contract, usually ABI-encoded
+	Data []byte
+
+	// The Removed field is true if this log was reverted due to a chain reorganisation.
+	// You must pay attention to this field if you receive logs through a filter query.
+	Removed bool
+}
+
+func newEvmLogs(logs []types.Log) []EvmLogs {
+	result := make([]EvmLogs, len(logs))
+	for i, log := range logs {
+		result[i].Address = log.Address
+		result[i].Data = log.Data
+		result[i].Removed = log.Removed
+		result[i].Topics = []byte{}
+		for _, topic := range log.Topics {
+			result[i].Topics = append(result[i].Topics, topic.Bytes()...)
+		}
+	}
+	return result
+}
+
+func getFormatLogs(logs []types.Log) string {
+	result := ""
+	sep := ", "
+	for _, logData := range logs {
+		result += fmt.Sprintf("{Address:\"%x\"", logData.Address.Bytes()) + sep
+		result += fmt.Sprintf("Data:%x", logData.Data) + sep
+		result += fmt.Sprintf("Removed:%t", logData.Removed) + sep
+		result += "{"
+		for i, topic := range logData.Topics {
+			result += fmt.Sprintf("Topic%v:%x", i, topic.Bytes()) + sep
+		}
+		result += "}}"
+	}
+	return result
+}
 
 func getLevelDB(rt runtime.Runtime) *databaseSingleton {
 	once.Do(func() {
@@ -66,6 +111,7 @@ type ContractParams struct {
 type ContractResult struct {
 	Value   []byte
 	GasUsed int64
+	Logs    []EvmLogs
 }
 
 // Creates new EVM configuration
@@ -142,9 +188,11 @@ func (a Actor) createContract(rt runtime.Runtime, params *ContractParams, commit
 	ret := &ContractResult{}
 	ret.Value = result.Value
 	ret.GasUsed = int64(gasLimit - result.GasLeft)
-
 	// charge gas counted by EVM for contract creation
 	rt.ChargeGas("OnCreateContract", ret.GasUsed, 0)
+	// Add logs from evm
+	ret.Logs = newEvmLogs(evm.GetLogs())
+	rt.Log(rtt.INFO, getFormatLogs(evm.GetLogs()))
 	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
 		return ret
 	}
@@ -198,7 +246,9 @@ func (a Actor) callContract(rt runtime.Runtime, params *ContractParams, commitSt
 	ret.GasUsed = int64(gasLimit - result.GasLeft)
 	// charge gas counted by EVM for this call
 	rt.ChargeGas("OnCallContract", ret.GasUsed, 0)
-
+	// Add logs from evm
+	ret.Logs = newEvmLogs(evm.GetLogs())
+	rt.Log(rtt.INFO, getFormatLogs(evm.GetLogs()))
 	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
 		return ret
 	}

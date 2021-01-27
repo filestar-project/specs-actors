@@ -55,6 +55,7 @@ func main() {
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/account/cbor_gen.go", "account",
 		// actor state
 		account.State{},
+		account.EvmLogs{},
 		account.ContractParams{},
 		account.ContractResult{},
 	); err != nil {
