@@ -5,7 +5,9 @@ import (
 	"math/big"
 
 	logging "github.com/ipfs/go-log/v2"
+	"golang.org/x/xerrors"
 
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
 	"github.com/filestar-project/evm-adapter/crypto"
 	"github.com/filestar-project/evm-adapter/evm"
@@ -41,12 +43,12 @@ func (e *evmAdapter) GetBlockHashByNum(num uint64) types.Hash {
 
 //// Get balance by address
 func (e *evmAdapter) GetBalance(addr types.Address) *big.Int {
-	a, err := convertAddress(addr)
+	a, err := e.tryGetActorAddress(addr)
 	if err != nil {
-		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot convert address %x from types.Address", addr.Bytes())
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot GetBalance(%x), error = %v", addr.Bytes(), err)
 	}
 	balance := e.Runtime.GetActorBalance(a)
-	log.Debugf("evm-adapter::GetBalance(%v) => %v", hex.EncodeToString(addr.Bytes()), balance)
+	log.Debugf("evm-adapter::GetBalance(%x) => %v", hex.EncodeToString(addr.Bytes()), balance)
 	return balance.Int
 }
 
@@ -54,28 +56,56 @@ func (e *evmAdapter) GetBalance(addr types.Address) *big.Int {
 func (e *evmAdapter) AddBalance(addr types.Address, value *big.Int) {
 	log.Debugf("evm-adapter::AddBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
 	msgValue := stateBig.NewFromGo(value)
-	addrConv, err := convertAddress(addr)
+	actorAddress, err := e.tryGetActorAddress(addr)
 	if err != nil {
-		log.Debugf("Can't convert types.address to address.address")
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot AddBalance(%x, %v), error = %v", addr.Bytes(), value, err)
 	}
 
-	e.Runtime.AddActorBalance(addrConv, msgValue)
+	code := e.Runtime.Send(actorAddress, builtin.MethodSend, nil, msgValue, &builtin.Discard{})
+	builtin.RequireSuccess(e.Runtime, code, "failed to add balance from EVM")
 }
 
 //// Sub balance by address
 func (e *evmAdapter) SubBalance(addr types.Address, value *big.Int) {
 	log.Debugf("evm-adapter::SubBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
 	msgValue := stateBig.NewFromGo(value)
-	addrConv, err := convertAddress(addr)
+	actorAddress, err := e.tryGetActorAddress(addr)
 	if err != nil {
-		log.Debugf("Can't convert types.address to address.address")
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot SubBalance(%x, %v), error = %v", addr.Bytes(), value, err)
 	}
 
-	e.Runtime.SubActorBalance(addrConv, msgValue)
+	code := e.Runtime.Send(actorAddress, builtin.MethodSend, nil, msgValue.Neg(), &builtin.Discard{})
+	builtin.RequireSuccess(e.Runtime, code, "failed to sub balance from EVM")
 }
 
-func convertAddress(addr types.Address) (address.Address, error) {
-	addrWithPrefix := append([]byte{address.SECP256K1}, addr.Bytes()...)
+// try to get actor address by payload
+// first try address.SECP256K1 protocol
+// then try address.Actor protocol
+// finally return error
+func (e *evmAdapter) tryGetActorAddress(addr types.Address) (address.Address, error) {
+	secpAddress, err := convertAddress(addr, address.SECP256K1)
+	if err != nil {
+		e.Runtime.Abortf(exitcode.ErrIllegalState, "cannot convert address from payload = %x to address.Address", addr.FixedBytes())
+	}
+	_, isSecp := e.Runtime.ResolveAddress(secpAddress)
+	if isSecp {
+		return secpAddress, nil
+	}
+
+	actorAddress, err := convertAddress(addr, address.Actor)
+	if err != nil {
+		e.Runtime.Abortf(exitcode.ErrIllegalState, "cannot convert address from payload = %x to address.Address", addr.FixedBytes())
+	}
+	_, isActor := e.Runtime.ResolveAddress(actorAddress)
+	if isActor {
+		return actorAddress, nil
+	}
+
+	return address.Address{}, xerrors.Errorf("address = %x not found", addr.FixedBytes())
+}
+
+func convertAddress(addr types.Address, protocol byte) (address.Address, error) {
+	addrWithPrefix := append([]byte{protocol}, addr.Bytes()...)
 	newAddress, err := address.NewFromBytes(addrWithPrefix)
 	if err != nil {
 		return address.Address{}, err
@@ -92,7 +122,7 @@ func PrecomputeContractAddress(caller address.Address, code []byte) (address.Add
 	if err != nil {
 		return address.Address{}, salt, err
 	}
-	newAddress, err := convertAddress(precomputedAddress)
+	newAddress, err := convertAddress(precomputedAddress, address.SECP256K1)
 	if err != nil {
 		return address.Address{}, salt, err
 	}

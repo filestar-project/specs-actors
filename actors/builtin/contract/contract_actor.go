@@ -131,7 +131,6 @@ func getFormatLogs(logs []types.Log) string {
 
 type ContractParams struct {
 	Code         []byte
-	Salt         []byte
 	Value        lotusbig.Int
 	CommitStatus bool
 }
@@ -139,11 +138,12 @@ type ContractParams struct {
 type ContractResult struct {
 	Value   []byte
 	GasUsed int64
+	Address address.Address
 	Logs    []EvmLogs
 }
 
 // Creates new EVM configuration
-func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
+func newEvmConfig(rt runtime.Runtime, params *ContractParams, salt []byte) *types.Config {
 	// fake for now
 	caller := types.BytesToAddress(rt.Origin().Payload())
 	db := getLevelDB(rt).levelDB
@@ -163,13 +163,13 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 		GasPrice:        big.NewInt(1),
 
 		// Used for contract creation
-		Salt: params.Salt,
+		Salt: salt,
 
 		// This fields used by logs:
 		BlockHash:    types.BytesToHash([]byte{123}),
 		TrxHash:      types.BytesToHash([]byte{121}),
 		TrxIndex:     321,
-		CommitStatus: params.commitStatus,
+		CommitStatus: params.CommitStatus,
 		// Root hash of stateDB
 		RootHash: root,
 		// Database for EVM
@@ -183,11 +183,19 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "contractActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
-	if rt.OriginReciever().Protocol() != address.SECP256K1 {
-		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 addresses allowed! Current address protocol: %v", rt.OriginReciever().Protocol())
+	addr, salt, err := PrecomputeContractAddress(rt.Origin(), params.Code)
+	rt.CreateActor(builtin.ContractActorCodeID, addr)
+	st := State{Address: addr}
+	rt.StateCreate(&st)
+	switch rt.Origin().Protocol() {
+	case address.SECP256K1:
+	case address.Actor:
+		break
+	default:
+		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 or Actor addresses allowed in Caller! Current address protocol: %v", rt.Origin().Protocol())
 	}
 
-	config := newEvmConfig(rt, params)
+	config := newEvmConfig(rt, params, salt)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)
@@ -226,12 +234,12 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 }
 
 func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	params.commitStatus = true
+	params.CommitStatus = true
 	return a.callContract(rt, params)
 }
 
 func (a Actor) CallContractWithoutCommit(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	params.commitStatus = false
+	params.CommitStatus = false
 	return a.callContract(rt, params)
 }
 
@@ -240,11 +248,18 @@ func (a Actor) callContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "contractActor.CallContract, code = %s", hex.EncodeToString(params.Code))
 	rt.ValidateImmediateCallerAcceptAny()
-	if rt.OriginReciever().Protocol() != address.SECP256K1 {
-		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 addresses allowed! Current address protocol: %v", rt.OriginReciever().Protocol())
+	switch rt.Origin().Protocol() {
+	case address.SECP256K1:
+	case address.Actor:
+		break
+	default:
+		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 or Actor addresses allowed in Caller! Current address protocol: %v", rt.Origin().Protocol())
+	}
+	if rt.OriginReciever().Protocol() != address.Actor {
+		rt.Abortf(exitcode.ErrForbidden, "Only Actor addresses allowed in Reciever! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
-	config := newEvmConfig(rt, params)
+	config := newEvmConfig(rt, params, []byte{})
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)

@@ -248,21 +248,13 @@ func (t *ContractParams) MarshalCBOR(w io.Writer) error {
 		return err
 	}
 
-	// t.Salt ([]uint8) (slice)
-	if len(t.Salt) > cbg.ByteArrayMaxLen {
-		return xerrors.Errorf("Byte array in field t.Salt was too long")
-	}
-
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajByteString, uint64(len(t.Salt))); err != nil {
-		return err
-	}
-
-	if _, err := w.Write(t.Salt[:]); err != nil {
-		return err
-	}
-
 	// t.Value (big.Int) (struct)
 	if err := t.Value.MarshalCBOR(w); err != nil {
+		return err
+	}
+
+	// t.CommitStatus (bool) (bool)
+	if err := cbg.WriteBool(w, t.CommitStatus); err != nil {
 		return err
 	}
 	return nil
@@ -307,27 +299,6 @@ func (t *ContractParams) UnmarshalCBOR(r io.Reader) error {
 	if _, err := io.ReadFull(br, t.Code[:]); err != nil {
 		return err
 	}
-	// t.Salt ([]uint8) (slice)
-
-	maj, extra, err = cbg.CborReadHeaderBuf(br, scratch)
-	if err != nil {
-		return err
-	}
-
-	if extra > cbg.ByteArrayMaxLen {
-		return fmt.Errorf("t.Salt: byte array too large (%d)", extra)
-	}
-	if maj != cbg.MajByteString {
-		return fmt.Errorf("expected byte array")
-	}
-
-	if extra > 0 {
-		t.Salt = make([]uint8, extra)
-	}
-
-	if _, err := io.ReadFull(br, t.Salt[:]); err != nil {
-		return err
-	}
 	// t.Value (big.Int) (struct)
 
 	{
@@ -337,10 +308,27 @@ func (t *ContractParams) UnmarshalCBOR(r io.Reader) error {
 		}
 
 	}
+	// t.CommitStatus (bool) (bool)
+
+	maj, extra, err = cbg.CborReadHeaderBuf(br, scratch)
+	if err != nil {
+		return err
+	}
+	if maj != cbg.MajOther {
+		return fmt.Errorf("booleans must be major type 7")
+	}
+	switch extra {
+	case 20:
+		t.CommitStatus = false
+	case 21:
+		t.CommitStatus = true
+	default:
+		return fmt.Errorf("booleans are either major type 7, value 20 or 21 (got %d)", extra)
+	}
 	return nil
 }
 
-var lengthBufContractResult = []byte{131}
+var lengthBufContractResult = []byte{132}
 
 func (t *ContractResult) MarshalCBOR(w io.Writer) error {
 	if t == nil {
@@ -377,6 +365,11 @@ func (t *ContractResult) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
+	// t.Address (address.Address) (struct)
+	if err := t.Address.MarshalCBOR(w); err != nil {
+		return err
+	}
+
 	// t.Logs ([]contract.EvmLogs) (slice)
 	if len(t.Logs) > cbg.MaxLength {
 		return xerrors.Errorf("Slice value in field t.Logs was too long")
@@ -407,7 +400,7 @@ func (t *ContractResult) UnmarshalCBOR(r io.Reader) error {
 		return fmt.Errorf("cbor input should be of type array")
 	}
 
-	if extra != 3 {
+	if extra != 4 {
 		return fmt.Errorf("cbor input had wrong number of fields")
 	}
 
@@ -456,6 +449,15 @@ func (t *ContractResult) UnmarshalCBOR(r io.Reader) error {
 		}
 
 		t.GasUsed = int64(extraI)
+	}
+	// t.Address (address.Address) (struct)
+
+	{
+
+		if err := t.Address.UnmarshalCBOR(br); err != nil {
+			return xerrors.Errorf("unmarshaling t.Address: %w", err)
+		}
+
 	}
 	// t.Logs ([]contract.EvmLogs) (slice)
 
