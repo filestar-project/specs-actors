@@ -1,26 +1,53 @@
-package account
+package contract
 
 import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"math/big"
-
 	"github.com/filecoin-project/go-address"
+	addr "github.com/filecoin-project/go-address"
 	lotusbig "github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filestar-project/evm-adapter/evm"
 	"github.com/filestar-project/evm-adapter/evm/state"
 	"github.com/filestar-project/evm-adapter/evm/types"
+	"github.com/ipfs/go-cid"
 
 	rtt "github.com/filecoin-project/go-state-types/rt"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
 )
+
+type Actor struct{}
+
+func (a Actor) Exports() []interface{} {
+	return []interface{}{
+		1: a.Constructor,
+		2: a.CallContract,
+		3: a.CallContractWithoutCommit,
+	}
+}
+
+func (a Actor) Code() cid.Cid {
+	return builtin.ContractActorCodeID
+}
+
+func (a Actor) State() cbor.Er {
+	return new(State)
+}
+
+var _ runtime.VMActor = Actor{}
+
+type State struct {
+	Address addr.Address
+}
 
 // PathToRepo path to repo from command params
 var PathToRepo string
@@ -31,6 +58,32 @@ type databaseSingleton struct {
 
 var database *databaseSingleton
 var once sync.Once
+
+func getLevelDB(rt runtime.Runtime) *databaseSingleton {
+	once.Do(func() {
+		if len(PathToRepo) == 0 {
+			// if no path provided, open LevelDB in tmp random dir
+			randBytes := make([]byte, 16)
+			if _, err := rand.Read(randBytes); err != nil {
+				rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
+				return
+			}
+			PathToRepo = filepath.Join(os.TempDir(), hex.EncodeToString(randBytes))
+			if err := os.MkdirAll(PathToRepo, os.ModePerm); err != nil {
+				rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
+				return
+			}
+		}
+		db, err := state.OpenDatabase(PathToRepo)
+		if err != nil {
+			rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
+			return
+		}
+		rt.Log(rtt.DEBUG, "Opened LevelDB for Ethereum VM on path %v", PathToRepo)
+		database = &databaseSingleton{db}
+	})
+	return database
+}
 
 type EvmLogs struct {
 	// Consensus fields:
@@ -76,36 +129,11 @@ func getFormatLogs(logs []types.Log) string {
 	return result
 }
 
-func getLevelDB(rt runtime.Runtime) *databaseSingleton {
-	once.Do(func() {
-		if len(PathToRepo) == 0 {
-			// if no path provided, open LevelDB in tmp random dir
-			randBytes := make([]byte, 16)
-			if _, err := rand.Read(randBytes); err != nil {
-				rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
-				return
-			}
-			PathToRepo = filepath.Join(os.TempDir(), hex.EncodeToString(randBytes))
-			if err := os.MkdirAll(PathToRepo, os.ModePerm); err != nil {
-				rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
-				return
-			}
-		}
-		db, err := state.OpenDatabase(PathToRepo)
-		if err != nil {
-			rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM %v", err)
-			return
-		}
-		rt.Log(rtt.DEBUG, "Opened LevelDB for Ethereum VM on path %v", PathToRepo)
-		database = &databaseSingleton{db}
-	})
-	return database
-}
-
 type ContractParams struct {
-	Code  []byte
-	Salt  []byte
-	Value lotusbig.Int
+	Code         []byte
+	Salt         []byte
+	Value        lotusbig.Int
+	CommitStatus bool
 }
 
 type ContractResult struct {
@@ -115,7 +143,7 @@ type ContractResult struct {
 }
 
 // Creates new EVM configuration
-func newEvmConfig(rt runtime.Runtime, params *ContractParams, commitStatus bool) *types.Config {
+func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 	// fake for now
 	caller := types.BytesToAddress(rt.Origin().Payload())
 	db := getLevelDB(rt).levelDB
@@ -141,7 +169,7 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams, commitStatus bool)
 		BlockHash:    types.BytesToHash([]byte{123}),
 		TrxHash:      types.BytesToHash([]byte{121}),
 		TrxIndex:     321,
-		CommitStatus: commitStatus,
+		CommitStatus: params.commitStatus,
 		// Root hash of stateDB
 		RootHash: root,
 		// Database for EVM
@@ -149,24 +177,17 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams, commitStatus bool)
 	}
 }
 
-func (a Actor) CreateContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	return a.createContract(rt, params, true)
-}
-
-func (a Actor) CreateContractWithoutCommit(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	return a.createContract(rt, params, false)
-}
-
-// Creates new EVM contract
-func (a Actor) createContract(rt runtime.Runtime, params *ContractParams, commitStatus bool) *ContractResult {
+func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *ContractResult {
+	// Account actors are created implicitly by sending a message to a pubkey-style address.
+	// This constructor is not invoked by the InitActor, but by the system.
+	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
 	// logs and call validation
-	rt.Log(rtt.DEBUG, "accountActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
-	rt.ValidateImmediateCallerAcceptAny()
+	rt.Log(rtt.DEBUG, "contractActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
 	if rt.OriginReciever().Protocol() != address.SECP256K1 {
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 addresses allowed! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
-	config := newEvmConfig(rt, params, commitStatus)
+	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)
@@ -205,23 +226,25 @@ func (a Actor) createContract(rt runtime.Runtime, params *ContractParams, commit
 }
 
 func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	return a.callContract(rt, params, true)
+	params.commitStatus = true
+	return a.callContract(rt, params)
 }
 
 func (a Actor) CallContractWithoutCommit(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	return a.callContract(rt, params, false)
+	params.commitStatus = false
+	return a.callContract(rt, params)
 }
 
 // Call EVM contract
-func (a Actor) callContract(rt runtime.Runtime, params *ContractParams, commitStatus bool) *ContractResult {
+func (a Actor) callContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
 	// logs and call validation
-	rt.Log(rtt.DEBUG, "accountActor.CallContract, code = %s", hex.EncodeToString(params.Code))
+	rt.Log(rtt.DEBUG, "contractActor.CallContract, code = %s", hex.EncodeToString(params.Code))
 	rt.ValidateImmediateCallerAcceptAny()
 	if rt.OriginReciever().Protocol() != address.SECP256K1 {
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 addresses allowed! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
-	config := newEvmConfig(rt, params, commitStatus)
+	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)

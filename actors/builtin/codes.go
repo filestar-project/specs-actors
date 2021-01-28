@@ -11,6 +11,7 @@ import (
 var (
 	SystemActorCodeID           cid.Cid
 	InitActorCodeID             cid.Cid
+	ContractActorCodeID         cid.Cid
 	CronActorCodeID             cid.Cid
 	AccountActorCodeID          cid.Cid
 	StoragePowerActorCodeID     cid.Cid
@@ -37,6 +38,7 @@ func init() {
 	for id, info := range map[*cid.Cid]*actorInfo{ //nolint:nomaprange
 		&SystemActorCodeID:           {name: "fil/2/system"},
 		&InitActorCodeID:             {name: "fil/2/init"},
+		&ContractActorCodeID:         {name: "fil/2/contract"},
 		&CronActorCodeID:             {name: "fil/2/cron"},
 		&StoragePowerActorCodeID:     {name: "fil/2/storagepower"},
 		&StorageMinerActorCodeID:     {name: "fil/2/storageminer"},

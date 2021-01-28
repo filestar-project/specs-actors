@@ -5,6 +5,7 @@ import (
 
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin/contract"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/cron"
 	init_ "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
@@ -55,13 +56,18 @@ func main() {
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/account/cbor_gen.go", "account",
 		// actor state
 		account.State{},
-		account.EvmLogs{},
-		account.ContractParams{},
-		account.ContractResult{},
 	); err != nil {
 		panic(err)
 	}
-
+	if err := gen.WriteTupleEncodersToFile("./actors/builtin/contract/cbor_gen.go", "contract",
+		// contract state
+		contract.State{},
+		contract.EvmLogs{},
+		contract.ContractParams{},
+		contract.ContractResult{},
+	); err != nil {
+		panic(err)
+	}
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/init/cbor_gen.go", "init",
 		// actor state
 		init_.State{},

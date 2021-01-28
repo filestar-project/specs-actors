@@ -17,10 +17,6 @@ func (a Actor) Exports() []interface{} {
 	return []interface{}{
 		1: a.Constructor,
 		2: a.PubkeyAddress,
-		3: a.CreateContract,
-		4: a.CreateContractWithoutCommit,
-		5: a.CallContract,
-		6: a.CallContractWithoutCommit,
 	}
 }
 
@@ -35,7 +31,7 @@ func (a Actor) State() cbor.Er {
 var _ runtime.VMActor = Actor{}
 
 type State struct {
-	Address  addr.Address
+	Address addr.Address
 }
 
 func (a Actor) Constructor(rt runtime.Runtime, address *addr.Address) *abi.EmptyValue {
