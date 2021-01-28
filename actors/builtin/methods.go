@@ -11,13 +11,9 @@ const (
 )
 
 var MethodsAccount = struct {
-	Constructor                 abi.MethodNum
-	PubkeyAddress               abi.MethodNum
-	CreateContract              abi.MethodNum
-	CreateContractWithoutCommit abi.MethodNum
-	CallContract                abi.MethodNum
-	CallContractWithoutCommit   abi.MethodNum
-}{MethodConstructor, 2, 3, 4, 5, 6}
+	Constructor   abi.MethodNum
+	PubkeyAddress abi.MethodNum
+}{MethodConstructor, 2}
 
 var MethodsInit = struct {
 	Constructor abi.MethodNum
@@ -113,3 +109,9 @@ var MethodsVerifiedRegistry = struct {
 	UseBytes          abi.MethodNum
 	RestoreBytes      abi.MethodNum
 }{MethodConstructor, 2, 3, 4, 5, 6}
+
+var MethodsContract = struct {
+	Constructor               abi.MethodNum
+	CallContract              abi.MethodNum
+	CallContractWithoutCommit abi.MethodNum
+}{MethodConstructor, 2, 3}

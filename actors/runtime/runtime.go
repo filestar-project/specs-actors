@@ -161,6 +161,10 @@ type Runtime interface {
 
 	// SubActorBalance sub balance to actor by address
 	SubActorBalance(addr.Address, big.Int)
+
+	// Delete contract actor by address
+	// Can be called only by ContractActor
+	DeleteContractActor(addr.Address)
 }
 
 // Store defines the storage module exposed to actors.

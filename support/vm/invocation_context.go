@@ -152,6 +152,10 @@ func (ic *invocationContext) AddActorBalance(a address.Address, value big.Int) {
 // TODO: stub for now
 func (ic *invocationContext) SubActorBalance(a address.Address, value big.Int) {}
 
+// DeleteContractActor implements runtime.DeleteContractActor
+// TODO: stub for now
+func (ic *invocationContext) DeleteContractActor(a address.Address) {}
+
 // Receiver implements runtime.Message
 func (ic *invocationContext) Receiver() address.Address {
 	return ic.msg.Receiver()

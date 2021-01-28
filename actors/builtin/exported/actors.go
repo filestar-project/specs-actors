@@ -2,6 +2,7 @@ package exported
 
 import (
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin/contract"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/cron"
 	init_ "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
@@ -18,6 +19,7 @@ import (
 func BuiltinActors() []runtime.VMActor {
 	return []runtime.VMActor{
 		account.Actor{},
+		contract.Actor{},
 		cron.Actor{},
 		init_.Actor{},
 		market.Actor{},

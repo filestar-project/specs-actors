@@ -26,4 +26,4 @@ require (
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 )
 
-replace github.com/filestar-project/evm-adapter => gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210122113806-5aa2bd9fe8e0
+replace github.com/filestar-project/evm-adapter => gitlab.pixelplex.by/731-filecoin/evm-adapter v0.0.0-20210128144858-3bf9f9a3b523

@@ -39,6 +39,15 @@ func (e *evmAdapter) GetBlockHashByNum(num uint64) types.Hash {
 	return types.Hash{}
 }
 
+// Address call suicide
+func (e *evmAdapter) DeleteAddress(addr types.Address) {
+	a, err := e.tryGetActorAddress(addr)
+	if err != nil {
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot GetBalance(%x), error = %v", addr.Bytes(), err)
+	}
+	e.Runtime.DeleteContractActor(a)
+}
+
 // Balance managing
 
 //// Get balance by address

@@ -184,6 +184,9 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "contractActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
 	addr, salt, err := PrecomputeContractAddress(rt.Origin(), params.Code)
+	if err != nil {
+		rt.Abortf(exitcode.ErrForbidden, "Cannot compute contract address, caller = %x, err = ", rt.Origin(), err)
+	}
 	rt.CreateActor(builtin.ContractActorCodeID, addr)
 	st := State{Address: addr}
 	rt.StateCreate(&st)

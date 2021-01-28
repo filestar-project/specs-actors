@@ -723,6 +723,10 @@ func (rt *Runtime) AddActorBalance(a addr.Address, value big.Int) {}
 // TODO: stub for now
 func (rt *Runtime) SubActorBalance(a addr.Address, value big.Int) {}
 
+// DeleteContractActor implements runtime.DeleteContractActor
+// TODO: stub for now
+func (rt *Runtime) DeleteContractActor(a addr.Address) {}
+
 ///// Trace span implementation /////
 
 type TraceSpan struct {
