@@ -156,6 +156,10 @@ func (ic *invocationContext) SubActorBalance(a address.Address, value big.Int) {
 // TODO: stub for now
 func (ic *invocationContext) DeleteContractActor(a address.Address) {}
 
+// NewContractActorAddress implements runtime.NewContractActorAddress
+// TODO: stub for now
+func (ic *invocationContext) NewContractActorAddress(code []byte) (address.Address, []byte) {}
+
 // Receiver implements runtime.Message
 func (ic *invocationContext) Receiver() address.Address {
 	return ic.msg.Receiver()

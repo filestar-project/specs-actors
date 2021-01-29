@@ -165,6 +165,13 @@ type Runtime interface {
 	// Delete contract actor by address
 	// Can be called only by ContractActor
 	DeleteContractActor(addr.Address)
+
+	// Returns new unique contract actor address
+	// that depends on caller address,
+	// contract code and caller nonce
+	// argument is contract code
+	// returns address and salt used for it generation
+	NewContractActorAddress([]byte) (addr.Address, []byte)
 }
 
 // Store defines the storage module exposed to actors.

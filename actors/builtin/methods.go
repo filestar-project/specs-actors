@@ -113,5 +113,4 @@ var MethodsVerifiedRegistry = struct {
 var MethodsContract = struct {
 	Constructor               abi.MethodNum
 	CallContract              abi.MethodNum
-	CallContractWithoutCommit abi.MethodNum
-}{MethodConstructor, 2, 3}
+}{MethodConstructor, 2}

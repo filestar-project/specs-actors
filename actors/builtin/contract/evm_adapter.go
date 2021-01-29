@@ -7,9 +7,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
-	"github.com/filestar-project/evm-adapter/crypto"
 	"github.com/filestar-project/evm-adapter/evm"
 	"github.com/filestar-project/evm-adapter/evm/types"
 
@@ -57,7 +55,7 @@ func (e *evmAdapter) GetBalance(addr types.Address) *big.Int {
 		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot GetBalance(%x), error = %v", addr.Bytes(), err)
 	}
 	balance := e.Runtime.GetActorBalance(a)
-	log.Debugf("evm-adapter::GetBalance(%x) => %v", hex.EncodeToString(addr.Bytes()), balance)
+	log.Debugf("evm-adapter::GetBalance(%x) => %v", addr.Bytes(), balance)
 	return balance.Int
 }
 
@@ -70,8 +68,7 @@ func (e *evmAdapter) AddBalance(addr types.Address, value *big.Int) {
 		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot AddBalance(%x, %v), error = %v", addr.Bytes(), value, err)
 	}
 
-	code := e.Runtime.Send(actorAddress, builtin.MethodSend, nil, msgValue, &builtin.Discard{})
-	builtin.RequireSuccess(e.Runtime, code, "failed to add balance from EVM")
+	e.Runtime.AddActorBalance(actorAddress, msgValue)
 }
 
 //// Sub balance by address
@@ -83,8 +80,7 @@ func (e *evmAdapter) SubBalance(addr types.Address, value *big.Int) {
 		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot SubBalance(%x, %v), error = %v", addr.Bytes(), value, err)
 	}
 
-	code := e.Runtime.Send(actorAddress, builtin.MethodSend, nil, msgValue.Neg(), &builtin.Discard{})
-	builtin.RequireSuccess(e.Runtime, code, "failed to sub balance from EVM")
+	e.Runtime.SubActorBalance(actorAddress, msgValue)
 }
 
 // try to get actor address by payload
@@ -123,17 +119,16 @@ func convertAddress(addr types.Address, protocol byte) (address.Address, error) 
 }
 
 // PrecomputeContractAddress - precompute contract address, based on caller address and contract code
-// it will return new address, salt (used for address generation) and any errors
-func PrecomputeContractAddress(caller address.Address, code []byte) (address.Address, []byte, error) {
-	salt := crypto.GenerateSalt()
+// it will return new address and any errors
+func PrecomputeContractAddress(caller address.Address, code []byte, salt []byte) (address.Address, error) {
 	callerAddress := types.BytesToAddress(caller.Payload())
 	precomputedAddress, err := evm.ComputeNewContractAddress(callerAddress, code, salt)
 	if err != nil {
-		return address.Address{}, salt, err
+		return address.Address{}, err
 	}
-	newAddress, err := convertAddress(precomputedAddress, address.SECP256K1)
+	newAddress, err := convertAddress(precomputedAddress, address.Actor)
 	if err != nil {
-		return address.Address{}, salt, err
+		return address.Address{}, err
 	}
-	return newAddress, salt, nil
+	return newAddress, nil
 }

@@ -31,7 +31,6 @@ func (a Actor) Exports() []interface{} {
 	return []interface{}{
 		1: a.Constructor,
 		2: a.CallContract,
-		3: a.CallContractWithoutCommit,
 	}
 }
 
@@ -132,18 +131,18 @@ func getFormatLogs(logs []types.Log) string {
 type ContractParams struct {
 	Code         []byte
 	Value        lotusbig.Int
+	Salt         []byte
 	CommitStatus bool
 }
 
 type ContractResult struct {
 	Value   []byte
 	GasUsed int64
-	Address address.Address
 	Logs    []EvmLogs
 }
 
 // Creates new EVM configuration
-func newEvmConfig(rt runtime.Runtime, params *ContractParams, salt []byte) *types.Config {
+func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 	// fake for now
 	caller := types.BytesToAddress(rt.Origin().Payload())
 	db := getLevelDB(rt).levelDB
@@ -163,7 +162,7 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams, salt []byte) *type
 		GasPrice:        big.NewInt(1),
 
 		// Used for contract creation
-		Salt: salt,
+		Salt: params.Salt,
 
 		// This fields used by logs:
 		BlockHash:    types.BytesToHash([]byte{123}),
@@ -183,11 +182,7 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "contractActor.CreateContract, code = %s", hex.EncodeToString(params.Code))
-	addr, salt, err := PrecomputeContractAddress(rt.Origin(), params.Code)
-	if err != nil {
-		rt.Abortf(exitcode.ErrForbidden, "Cannot compute contract address, caller = %x, err = ", rt.Origin(), err)
-	}
-	rt.CreateActor(builtin.ContractActorCodeID, addr)
+	addr, err := PrecomputeContractAddress(rt.Origin(), params.Code, params.Salt)
 	st := State{Address: addr}
 	rt.StateCreate(&st)
 	switch rt.Origin().Protocol() {
@@ -198,7 +193,7 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 or Actor addresses allowed in Caller! Current address protocol: %v", rt.Origin().Protocol())
 	}
 
-	config := newEvmConfig(rt, params, salt)
+	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)
@@ -237,17 +232,6 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 }
 
 func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	params.CommitStatus = true
-	return a.callContract(rt, params)
-}
-
-func (a Actor) CallContractWithoutCommit(rt runtime.Runtime, params *ContractParams) *ContractResult {
-	params.CommitStatus = false
-	return a.callContract(rt, params)
-}
-
-// Call EVM contract
-func (a Actor) callContract(rt runtime.Runtime, params *ContractParams) *ContractResult {
 	// logs and call validation
 	rt.Log(rtt.DEBUG, "contractActor.CallContract, code = %s", hex.EncodeToString(params.Code))
 	rt.ValidateImmediateCallerAcceptAny()
@@ -262,7 +246,7 @@ func (a Actor) callContract(rt runtime.Runtime, params *ContractParams) *Contrac
 		rt.Abortf(exitcode.ErrForbidden, "Only Actor addresses allowed in Reciever! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
-	config := newEvmConfig(rt, params, []byte{})
+	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
 	adapter := newEvmAdapter(rt)
