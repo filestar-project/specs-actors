@@ -144,13 +144,9 @@ func (ic *invocationContext) GetActorBalance(address.Address) big.Int {
 	return ic.toActor.Balance
 }
 
-// AddActorBalance implements runtime.AddActorBalance
+// TransferTokens implements runtime.TransferTokens
 // TODO: stub for now
-func (ic *invocationContext) AddActorBalance(a address.Address, value big.Int) {}
-
-// SubActorBalance implements runtime.SubActorBalance
-// TODO: stub for now
-func (ic *invocationContext) SubActorBalance(a address.Address, value big.Int) {}
+func (ic *invocationContext) TransferTokens(from, to address.Address, value big.Int) {}
 
 // DeleteContractActor implements runtime.DeleteContractActor
 // TODO: stub for now

@@ -1,7 +1,6 @@
 package contract
 
 import (
-	"encoding/hex"
 	"math/big"
 
 	logging "github.com/ipfs/go-log/v2"
@@ -59,28 +58,19 @@ func (e *evmAdapter) GetBalance(addr types.Address) *big.Int {
 	return balance.Int
 }
 
-//// Add balance by address
-func (e *evmAdapter) AddBalance(addr types.Address, value *big.Int) {
-	log.Debugf("evm-adapter::AddBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
+//// Transfer tokens
+func (e *evmAdapter) TransferTokens(from, to types.Address, value *big.Int) {
+	log.Debugf("evm-adapter::TransferTokens(%x, %x, %v)", from.FixedBytes(), to.FixedBytes(), value)
 	msgValue := stateBig.NewFromGo(value)
-	actorAddress, err := e.tryGetActorAddress(addr)
+	senderAddress, err := e.tryGetActorAddress(from)
 	if err != nil {
-		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot AddBalance(%x, %v), error = %v", addr.Bytes(), value, err)
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot TransferTokens(%x, %x, %v), error = %v", from.FixedBytes(), to.FixedBytes(), value, value, err)
 	}
-
-	e.Runtime.AddActorBalance(actorAddress, msgValue)
-}
-
-//// Sub balance by address
-func (e *evmAdapter) SubBalance(addr types.Address, value *big.Int) {
-	log.Debugf("evm-adapter::SubBalance(%v, %v)", hex.EncodeToString(addr.Bytes()), value)
-	msgValue := stateBig.NewFromGo(value)
-	actorAddress, err := e.tryGetActorAddress(addr)
+	recipientAddress, err := e.tryGetActorAddress(to)
 	if err != nil {
-		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot SubBalance(%x, %v), error = %v", addr.Bytes(), value, err)
+		e.Runtime.Abortf(exitcode.ErrForbidden, "cannot TransferTokens(%x, %x, %v), error = %v", from.FixedBytes(), to.FixedBytes(), value, value, err)
 	}
-
-	e.Runtime.SubActorBalance(actorAddress, msgValue)
+	e.Runtime.TransferTokens(senderAddress, recipientAddress, msgValue)
 }
 
 // try to get actor address by payload

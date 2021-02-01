@@ -715,13 +715,9 @@ func (rt *Runtime) GetActorBalance(addr.Address) big.Int {
 	return rt.balance
 }
 
-// AddActorBalance implements runtime.AddActorBalance
+// TransferTokens implements runtime.TransferTokens
 // TODO: stub for now
-func (rt *Runtime) AddActorBalance(a addr.Address, value big.Int) {}
-
-// SubActorBalance implements runtime.SubActorBalance
-// TODO: stub for now
-func (rt *Runtime) SubActorBalance(a addr.Address, value big.Int) {}
+func (rt *Runtime) TransferTokens(from, to addr.Address, value big.Int) {}
 
 // DeleteContractActor implements runtime.DeleteContractActor
 // TODO: stub for now

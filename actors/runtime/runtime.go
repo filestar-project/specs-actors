@@ -156,11 +156,10 @@ type Runtime interface {
 	// In case if actor not exist will return zero
 	GetActorBalance(addr.Address) big.Int
 
-	// AddActorBalance add balance to actor by address
-	AddActorBalance(addr.Address, big.Int)
-
-	// SubActorBalance sub balance to actor by address
-	SubActorBalance(addr.Address, big.Int)
+	// TransferTokens transfer tokens from address, to address and value
+	// Used only with secp256k1 and actor addresses
+	// Will call vm send
+	TransferTokens(addr.Address, addr.Address, big.Int)
 
 	// Delete contract actor by address
 	// Can be called only by ContractActor

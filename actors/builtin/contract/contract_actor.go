@@ -268,6 +268,9 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	// construct result which is being returned
 	ret := &ContractResult{}
 	ret.Value = result.Value
+	if ret.Value == nil {
+		ret.Value = make([]byte, 0)
+	}
 	ret.GasUsed = int64(gasLimit - result.GasLeft)
 	// charge gas counted by EVM for this call
 	rt.ChargeGas("OnCallContract", ret.GasUsed, 0)
