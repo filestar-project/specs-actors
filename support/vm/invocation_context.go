@@ -325,6 +325,9 @@ func (ic *invocationContext) NewActorAddress() address.Address {
 	}
 	return actorAddress
 }
+func (ic *invocationContext) SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode) {
+	return 0
+}
 
 // Send implements runtime.InvocationContext.
 func (ic *invocationContext) Send(toAddr address.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) (errcode exitcode.ExitCode) {

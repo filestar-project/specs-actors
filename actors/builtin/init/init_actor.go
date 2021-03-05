@@ -25,6 +25,7 @@ func (a Actor) Exports() []interface{} {
 	return []interface{}{
 		builtin.MethodConstructor: a.Constructor,
 		2:                         a.Exec,
+		3:                         a.ExecWithResult,
 	}
 }
 
@@ -67,7 +68,9 @@ type ExecParams = init0.ExecParams
 //}
 type ExecReturn = init0.ExecReturn
 
-func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
+// execPreparation function for prepare sends in exec functions
+func (a Actor) execPreparation(rtPointer *runtime.Runtime, params *ExecParams) (addr.Address, addr.Address) {
+	rt := *rtPointer
 	rt.ValidateImmediateCallerAcceptAny()
 	callerCodeCID, ok := rt.GetActorCodeCID(rt.Caller())
 	autil.AssertMsg(ok, "no code for actor at %s", rt.Caller())
@@ -114,7 +117,25 @@ func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
 
 	// Create an empty actor.
 	rt.CreateActor(params.CodeCID, idAddr)
+	return idAddr, uniqueAddress
+}
 
+// Special Exec method for actors, whose can return some extra values from constructor
+// Traditional Exec discard this value
+func (a Actor) ExecWithResult(rt runtime.Runtime, params *ExecParams) *contract.ContractResult {
+	idAddr, _ := a.execPreparation(&rt, params)
+	// Invoke constructor.
+	ret, code := rt.SendMarshalled(idAddr, builtin.MethodConstructor, rt.ValueReceived(), builtin.CBORBytes(params.ConstructorParams))
+	builtin.RequireSuccess(rt, code, "constructor failed")
+	var result contract.ContractResult
+	if err := result.UnmarshalCBOR(bytes.NewReader(ret)); err != nil {
+		rt.Abortf(exitcode.ErrSerialization, "failed to unmarshal return value: %s", err)
+	}
+	return &result
+}
+
+func (a Actor) Exec(rt runtime.Runtime, params *ExecParams) *ExecReturn {
+	idAddr, uniqueAddress := a.execPreparation(&rt, params)
 	// Invoke constructor.
 	code := rt.Send(idAddr, builtin.MethodConstructor, builtin.CBORBytes(params.ConstructorParams), rt.ValueReceived(), &builtin.Discard{})
 	builtin.RequireSuccess(rt, code, "constructor failed")

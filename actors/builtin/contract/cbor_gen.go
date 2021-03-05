@@ -5,12 +5,16 @@ package contract
 import (
 	"fmt"
 	"io"
+	"sort"
 
+	cid "github.com/ipfs/go-cid"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	xerrors "golang.org/x/xerrors"
 )
 
 var _ = xerrors.Errorf
+var _ = cid.Undef
+var _ = sort.Sort
 
 var lengthBufState = []byte{129}
 
@@ -362,7 +366,7 @@ func (t *ContractParams) UnmarshalCBOR(r io.Reader) error {
 	return nil
 }
 
-var lengthBufContractResult = []byte{131}
+var lengthBufContractResult = []byte{132}
 
 func (t *ContractResult) MarshalCBOR(w io.Writer) error {
 	if t == nil {
@@ -399,6 +403,19 @@ func (t *ContractResult) MarshalCBOR(w io.Writer) error {
 		}
 	}
 
+	// t.Address (types.Address) (array)
+	if len(t.Address) > cbg.ByteArrayMaxLen {
+		return xerrors.Errorf("Byte array in field t.Address was too long")
+	}
+
+	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajByteString, uint64(len(t.Address))); err != nil {
+		return err
+	}
+
+	if _, err := w.Write(t.Address[:]); err != nil {
+		return err
+	}
+
 	// t.Logs ([]contract.EvmLogs) (slice)
 	if len(t.Logs) > cbg.MaxLength {
 		return xerrors.Errorf("Slice value in field t.Logs was too long")
@@ -429,7 +446,7 @@ func (t *ContractResult) UnmarshalCBOR(r io.Reader) error {
 		return fmt.Errorf("cbor input should be of type array")
 	}
 
-	if extra != 3 {
+	if extra != 4 {
 		return fmt.Errorf("cbor input had wrong number of fields")
 	}
 
@@ -478,6 +495,29 @@ func (t *ContractResult) UnmarshalCBOR(r io.Reader) error {
 		}
 
 		t.GasUsed = int64(extraI)
+	}
+	// t.Address (types.Address) (array)
+
+	maj, extra, err = cbg.CborReadHeaderBuf(br, scratch)
+	if err != nil {
+		return err
+	}
+
+	if extra > cbg.ByteArrayMaxLen {
+		return fmt.Errorf("t.Address: byte array too large (%d)", extra)
+	}
+	if maj != cbg.MajByteString {
+		return fmt.Errorf("expected byte array")
+	}
+
+	if extra != 20 {
+		return fmt.Errorf("expected array to have 20 elements")
+	}
+
+	t.Address = [20]uint8{}
+
+	if _, err := io.ReadFull(br, t.Address[:]); err != nil {
+		return err
 	}
 	// t.Logs ([]contract.EvmLogs) (slice)
 

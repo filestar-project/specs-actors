@@ -138,6 +138,7 @@ type ContractParams struct {
 type ContractResult struct {
 	Value   []byte
 	GasUsed int64
+	Address types.Address
 	Logs    []EvmLogs
 }
 
@@ -156,7 +157,7 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 		BlockNumber:     big.NewInt(100),
 		BlockTime:       big.NewInt(0),
 		BlockDifficulty: big.NewInt(0),
-		BlockGasLimit:   1000000000,
+		BlockGasLimit:   100000000000,
 		BlockCoinbase:   types.BytesToAddress([]byte{121}),
 		Caller:          caller,
 		GasPrice:        big.NewInt(1),
@@ -196,7 +197,7 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
-	adapter := newEvmAdapter(rt)
+	adapter := newEvmAdapter(rt, params.CommitStatus)
 	evm, err := evm.NewEVM(adapter, config)
 	if err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
@@ -215,6 +216,7 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	ret := &ContractResult{}
 	ret.Value = result.Value
 	ret.GasUsed = int64(gasLimit - result.GasLeft)
+	ret.Address = result.Address
 	// charge gas counted by EVM for contract creation
 	rt.ChargeGas("OnCreateContract", ret.GasUsed, 0)
 	// Add logs from evm
@@ -249,7 +251,7 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
-	adapter := newEvmAdapter(rt)
+	adapter := newEvmAdapter(rt, params.CommitStatus)
 	evm, err := evm.NewEVM(adapter, config)
 	if err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)

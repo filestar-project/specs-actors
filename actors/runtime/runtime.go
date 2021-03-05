@@ -91,6 +91,11 @@ type Runtime interface {
 	// will be rolled back.
 	Send(toAddr addr.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) exitcode.ExitCode
 
+	// Sends a message to another actor, returning the exit code and return value envelope.
+	// If the invoked method does not return successfully, its state changes (and that of any messages it sent in turn)
+	// will be rolled back.
+	SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode)
+
 	// Halts execution upon an error from which the receiver cannot recover. The caller will receive the exitcode and
 	// an empty return value. State changes made within this call will be rolled back.
 	// This method does not return.
@@ -171,6 +176,12 @@ type Runtime interface {
 	// argument is contract code
 	// returns address and salt used for it generation
 	NewContractActorAddress([]byte) (addr.Address, []byte)
+
+	//Get actor nonce from stateTree
+	GetNonce(addr.Address) uint64
+
+	//Set actor nonce to new value
+	SetNonce(addr.Address, uint64)
 }
 
 // Store defines the storage module exposed to actors.
