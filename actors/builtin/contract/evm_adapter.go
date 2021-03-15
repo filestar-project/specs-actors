@@ -199,3 +199,13 @@ func (e *evmAdapter) SetNonce(addr types.Address, value uint64) {
 	e.Runtime.SetNonce(a, value)
 	log.Debugf("evm-adapter::SetNonce(%x, %v)", addr.Bytes(), value)
 }
+
+//  SetStateDB
+func (e *evmAdapter) SetStateDB(db types.StateDB) {
+	pointer.Statedb = db
+}
+
+//  SetCleanPointer
+func (e *evmAdapter) SetCleanPointer(needClean bool) {
+	pointer.Clean = needClean
+}

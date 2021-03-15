@@ -55,6 +55,12 @@ type databaseSingleton struct {
 	levelDB types.Database
 }
 
+type StateDBPointer struct {
+	Statedb types.StateDB
+	Clean   bool
+}
+
+var pointer StateDBPointer
 var database *databaseSingleton
 var once sync.Once
 
@@ -194,19 +200,30 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 or Actor addresses allowed in Caller! Current address protocol: %v", rt.Origin().Protocol())
 	}
 
+	params.CommitStatus = (pointer.Statedb == nil) && params.CommitStatus
+
 	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
+	var evmObj *evm.EVM
 	adapter := newEvmAdapter(rt, params.CommitStatus)
-	evm, err := evm.NewEVM(adapter, config)
+	if pointer.Statedb != nil {
+		evmObj, err = evm.NewEVMWithStateDB(adapter, pointer.Statedb, config)
+	} else {
+		evmObj, err = evm.NewEVM(adapter, config)
+	}
+
 	if err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
 		return nil
 	}
-
 	// instruct EVM to create the contract
 	gasLimit := rt.GasLimit()
-	result, err := evm.CreateContract(params.Code, uint64(gasLimit), params.Value.Int)
+	result, err := evmObj.CreateContract(params.Code, uint64(gasLimit), params.Value.Int)
+	if pointer.Clean {
+		pointer.Clean = false
+		pointer.Statedb = nil
+	}
 	if err != nil {
 		rt.Abortf(exitcode.ErrForbidden, "Failed create contract, got %v", err)
 		return nil
@@ -220,8 +237,8 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	// charge gas counted by EVM for contract creation
 	rt.ChargeGas("OnCreateContract", ret.GasUsed, 0)
 	// Add logs from evm
-	ret.Logs = newEvmLogs(evm.GetLogs())
-	rt.Log(rtt.INFO, getFormatLogs(evm.GetLogs()))
+	ret.Logs = newEvmLogs(evmObj.GetLogs())
+	rt.Log(rtt.INFO, getFormatLogs(evmObj.GetLogs()))
 	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
 		return ret
 	}
@@ -248,11 +265,19 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 		rt.Abortf(exitcode.ErrForbidden, "Only Actor addresses allowed in Reciever! Current address protocol: %v", rt.OriginReciever().Protocol())
 	}
 
+	params.CommitStatus = (pointer.Statedb == nil) && params.CommitStatus
+
 	config := newEvmConfig(rt, params)
 
 	// construct proxy object and EVM
+	var evmObj *evm.EVM
+	var err error
 	adapter := newEvmAdapter(rt, params.CommitStatus)
-	evm, err := evm.NewEVM(adapter, config)
+	if pointer.Statedb != nil {
+		evmObj, err = evm.NewEVMWithStateDB(adapter, pointer.Statedb, config)
+	} else {
+		evmObj, err = evm.NewEVM(adapter, config)
+	}
 	if err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
 		return nil
@@ -261,12 +286,15 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	// instruct EVM to call the contract
 	gasLimit := rt.GasLimit()
 	receiver := types.BytesToAddress(rt.OriginReciever().Payload())
-	result, err := evm.CallContract(receiver, params.Code, uint64(gasLimit), params.Value.Int)
+	result, err := evmObj.CallContract(receiver, params.Code, uint64(gasLimit), params.Value.Int)
+	if pointer.Clean {
+		pointer.Clean = false
+		pointer.Statedb = nil
+	}
 	if err != nil {
 		rt.Abortf(exitcode.ErrForbidden, "Failed call contract, got %v", err)
 		return nil
 	}
-
 	// construct result which is being returned
 	ret := &ContractResult{}
 	ret.Value = result.Value
@@ -277,8 +305,8 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	// charge gas counted by EVM for this call
 	rt.ChargeGas("OnCallContract", ret.GasUsed, 0)
 	// Add logs from evm
-	ret.Logs = newEvmLogs(evm.GetLogs())
-	rt.Log(rtt.INFO, getFormatLogs(evm.GetLogs()))
+	ret.Logs = newEvmLogs(evmObj.GetLogs())
+	rt.Log(rtt.INFO, getFormatLogs(evmObj.GetLogs()))
 	if bytes.Equal(config.RootHash.Bytes(), result.Root.Bytes()) {
 		return ret
 	}
