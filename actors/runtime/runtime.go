@@ -155,7 +155,7 @@ type Runtime interface {
 	Origin() addr.Address
 
 	// Returns origin address-reciever of message
-	OriginReciever() addr.Address
+	RecieverAddress() addr.Address
 
 	// GetActorBalance get balance by address
 	// In case if actor not exist will return zero

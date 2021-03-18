@@ -709,7 +709,7 @@ func (rt *Runtime) Origin() addr.Address {
 	return addr.Address{}
 }
 
-func (rt *Runtime) OriginReciever() addr.Address {
+func (rt *Runtime) RecieverAddress() addr.Address {
 	return rt.Receiver()
 }
 

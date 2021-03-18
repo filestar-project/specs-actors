@@ -149,15 +149,9 @@ type ContractResult struct {
 }
 
 // Creates new EVM configuration
-func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
+func newEvmConfig(rt runtime.Runtime, root types.Hash, params *ContractParams) *types.Config {
 	// fake for now
 	caller := types.BytesToAddress(rt.Origin().Payload())
-	db := getLevelDB(rt).levelDB
-	root, err := state.GetRoot(db)
-	if err != nil {
-		rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM (can't get root) %v", err)
-		return nil
-	}
 	return &types.Config{
 		// This fields used by Solidity opcodes:
 		BlockNumber:     big.NewInt(100),
@@ -178,8 +172,6 @@ func newEvmConfig(rt runtime.Runtime, params *ContractParams) *types.Config {
 		CommitStatus: params.CommitStatus,
 		// Root hash of stateDB
 		RootHash: root,
-		// Database for EVM
-		Database: db,
 	}
 }
 
@@ -201,16 +193,27 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 	}
 
 	params.CommitStatus = (pointer.Statedb == nil) && params.CommitStatus
-
-	config := newEvmConfig(rt, params)
+	db := getLevelDB(rt).levelDB
+	root, err := state.GetRoot(db)
+	if err != nil {
+		rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM (can't get root) %v", err)
+		return nil
+	}
+	config := newEvmConfig(rt, root, params)
 
 	// construct proxy object and EVM
 	var evmObj *evm.EVM
 	adapter := newEvmAdapter(rt, params.CommitStatus)
+
 	if pointer.Statedb != nil {
-		evmObj, err = evm.NewEVMWithStateDB(adapter, pointer.Statedb, config)
+		evmObj, err = evm.NewEVM(adapter, pointer.Statedb, config)
 	} else {
-		evmObj, err = evm.NewEVM(adapter, config)
+		statedb, err := state.New(config.RootHash.FixedBytes(), db, adapter, config)
+		if err != nil {
+			rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new StateDB object %v", err)
+			return nil
+		}
+		evmObj, err = evm.NewEVM(adapter, statedb, config)
 	}
 
 	if err != nil {
@@ -243,7 +246,7 @@ func (a Actor) Constructor(rt runtime.Runtime, params *ContractParams) *Contract
 		return ret
 	}
 	// Save root to database
-	if err := state.SaveRoot(config.Database, result.Root.FixedBytes()); err != nil {
+	if err := state.SaveRoot(db, result.Root.FixedBytes()); err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
 		return nil
 	}
@@ -261,22 +264,33 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 	default:
 		rt.Abortf(exitcode.ErrForbidden, "Only Secp256k1 or Actor addresses allowed in Caller! Current address protocol: %v", rt.Origin().Protocol())
 	}
-	if rt.OriginReciever().Protocol() != address.Actor {
-		rt.Abortf(exitcode.ErrForbidden, "Only Actor addresses allowed in Reciever! Current address protocol: %v", rt.OriginReciever().Protocol())
+	if rt.RecieverAddress().Protocol() != address.Actor {
+		rt.Abortf(exitcode.ErrForbidden, "Only Actor addresses allowed in Reciever! Current address protocol: %v", rt.RecieverAddress().Protocol())
 	}
 
 	params.CommitStatus = (pointer.Statedb == nil) && params.CommitStatus
 
-	config := newEvmConfig(rt, params)
+	db := getLevelDB(rt).levelDB
+	root, err := state.GetRoot(db)
+	if err != nil {
+		rt.Abortf(exitcode.ErrIllegalState, "Failed open LevelDB for EVM (can't get root) %v", err)
+		return nil
+	}
+	config := newEvmConfig(rt, root, params)
 
 	// construct proxy object and EVM
 	var evmObj *evm.EVM
-	var err error
 	adapter := newEvmAdapter(rt, params.CommitStatus)
+
 	if pointer.Statedb != nil {
-		evmObj, err = evm.NewEVMWithStateDB(adapter, pointer.Statedb, config)
+		evmObj, err = evm.NewEVM(adapter, pointer.Statedb, config)
 	} else {
-		evmObj, err = evm.NewEVM(adapter, config)
+		statedb, err := state.New(config.RootHash.FixedBytes(), db, adapter, config)
+		if err != nil {
+			rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new StateDB object %v", err)
+			return nil
+		}
+		evmObj, err = evm.NewEVM(adapter, statedb, config)
 	}
 	if err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed creation of new EVM object %v", err)
@@ -285,7 +299,7 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 
 	// instruct EVM to call the contract
 	gasLimit := rt.GasLimit()
-	receiver := types.BytesToAddress(rt.OriginReciever().Payload())
+	receiver := types.BytesToAddress(rt.RecieverAddress().Payload())
 	result, err := evmObj.CallContract(receiver, params.Code, uint64(gasLimit), params.Value.Int)
 	if pointer.Clean {
 		pointer.Clean = false
@@ -311,7 +325,7 @@ func (a Actor) CallContract(rt runtime.Runtime, params *ContractParams) *Contrac
 		return ret
 	}
 	// Save root to database
-	if err := state.SaveRoot(config.Database, result.Root.FixedBytes()); err != nil {
+	if err := state.SaveRoot(db, result.Root.FixedBytes()); err != nil {
 		rt.Abortf(exitcode.ErrIllegalState, "Failed to save EVM root to database %v", err)
 		return nil
 	}

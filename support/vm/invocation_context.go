@@ -133,8 +133,8 @@ func (ic *invocationContext) Origin() address.Address {
 	return ic.msg.Caller()
 }
 
-// Origin implements runtime.OriginReciever
-func (ic *invocationContext) OriginReciever() address.Address {
+// Origin implements runtime.RecieverAddress
+func (ic *invocationContext) RecieverAddress() address.Address {
 	return ic.msg.Receiver()
 }
 
