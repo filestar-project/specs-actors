@@ -10,6 +10,7 @@ import (
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/system"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
@@ -28,5 +29,6 @@ func BuiltinActors() []runtime.VMActor {
 		reward.Actor{},
 		system.Actor{},
 		verifreg.Actor{},
+		stake.Actor{},
 	}
 }
