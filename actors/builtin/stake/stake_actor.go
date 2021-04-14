@@ -404,7 +404,7 @@ func (a Actor) OnEpochTickEnd(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 			totalReward := abi.NewTokenAmount(0)
 			if st.TotalStakePower.GreaterThan(big.Zero()) {
 				totalReward = big.Mul(st.TotalStakePower, st.InflationFactor)
-				totalReward = big.Div(totalReward, InflationDividend)
+				totalReward = big.Div(totalReward, InflationDenominator)
 				totalReward = big.Min(totalReward, st.MaxRewardPerRound)
 				if totalReward.GreaterThan(big.Zero()) {
 					var power abi.StakePower

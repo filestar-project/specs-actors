@@ -12,7 +12,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 )
 
-var InflationDividend = big.NewInt(10000)
+var InflationDenominator = big.NewInt(10000)
 
 type State struct {
 	RootKey         addr.Address
