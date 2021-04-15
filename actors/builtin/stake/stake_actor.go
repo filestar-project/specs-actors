@@ -70,6 +70,9 @@ func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValu
 	return nil
 }
 
+// GasOnStakeDeposit is amount of extra gas charged for Stake Deposit
+const GasOnStakeDeposit = 888_888_888
+
 func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
 	nv := rt.NetworkVersion()
@@ -109,6 +112,8 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to put locked principals")
 		lpm, err := lockedPrincipalMap.Root()
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to flush locked principalMap")
+
+		rt.ChargeGas("OnStakeDeposit", GasOnStakeDeposit, 0)
 		st.LockedPrincipalMap = lpm
 	})
 	return nil
