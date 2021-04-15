@@ -84,7 +84,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	store := adt.AsStore(rt)
 	var st State
 	rt.StateReadonly(&st)
-	builtin.RequireParam(rt, depositAmount.GreaterThanEqual(st.MinDepositAmount), "amount to deposit must be greater than %s", st.MinDepositAmount)
+	builtin.RequireParam(rt, depositAmount.GreaterThanEqual(st.MinDepositAmount), "amount to deposit must be greater than or equal to %s", st.MinDepositAmount)
 
 	rt.StateTransaction(&st, func() {
 		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap)
