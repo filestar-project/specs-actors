@@ -195,6 +195,10 @@ func (a Actor) ChangeMaturePeriod(rt Runtime, params *ChangeMaturePeriodParams) 
 	rt.StateReadonly(&st)
 	rt.ValidateImmediateCallerIs(st.RootKey)
 
+	if params.MaturePeriod > st.PrincipalLockDuration {
+		rt.Abortf(exitcode.ErrIllegalArgument, "mature period %d cannot be greater than principal lock duration %d", params.MaturePeriod, st.PrincipalLockDuration)
+	}
+
 	rt.StateTransaction(&st, func() {
 		st.MaturePeriod = params.MaturePeriod
 	})
@@ -226,12 +230,16 @@ type ChangePrincipalLockDurationParams struct {
 
 func (a Actor) ChangePrincipalLockDuration(rt Runtime, params *ChangePrincipalLockDurationParams) *abi.EmptyValue {
 	if params.PrincipalLockDuration <= 0 {
-		rt.Abortf(exitcode.ErrIllegalArgument, "invalid principal lock period: %d", params.PrincipalLockDuration)
+		rt.Abortf(exitcode.ErrIllegalArgument, "invalid principal lock duration: %d", params.PrincipalLockDuration)
 	}
 
 	var st State
 	rt.StateReadonly(&st)
 	rt.ValidateImmediateCallerIs(st.RootKey)
+
+	if params.PrincipalLockDuration < st.MaturePeriod {
+		rt.Abortf(exitcode.ErrIllegalArgument, "principal lock duration %d cannot be less than mature period %d", params.PrincipalLockDuration, st.MaturePeriod)
+	}
 
 	rt.StateTransaction(&st, func() {
 		st.PrincipalLockDuration = params.PrincipalLockDuration
