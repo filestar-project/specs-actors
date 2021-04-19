@@ -173,7 +173,7 @@ func (a Actor) UpdateNetworkKPI(rt runtime.Runtime, currRealizedPower *abi.Stora
 			st.updateToNextEpoch(*currRealizedPower)
 		}
 
-		st.updateToNextEpochWithReward(*currRealizedPower)
+		st.updateToNextEpochWithReward(*currRealizedPower, rt.NetworkVersion())
 		// only update smoothed estimates after updating reward and epoch
 		st.updateSmoothedEstimates(st.Epoch - prev)
 	})
