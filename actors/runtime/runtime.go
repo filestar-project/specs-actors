@@ -12,6 +12,8 @@ import (
 	"github.com/filecoin-project/go-state-types/rt"
 	cid "github.com/ipfs/go-cid"
 
+	"github.com/filecoin-project/go-state-types/big"
+
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
 )
 
@@ -89,6 +91,11 @@ type Runtime interface {
 	// will be rolled back.
 	Send(toAddr addr.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) exitcode.ExitCode
 
+	// Sends a message to another actor, returning the exit code and return value envelope.
+	// If the invoked method does not return successfully, its state changes (and that of any messages it sent in turn)
+	// will be rolled back.
+	SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode)
+
 	// Halts execution upon an error from which the receiver cannot recover. The caller will receive the exitcode and
 	// an empty return value. State changes made within this call will be rolled back.
 	// This method does not return.
@@ -138,8 +145,43 @@ type Runtime interface {
 	// in total gas charged if amount of gas charged was to be changed.
 	ChargeGas(name string, gas int64, virtual int64)
 
+	// Current gas limit
+	GasLimit() uint64
+
 	// Note events that may make debugging easier
 	Log(level rt.LogLevel, msg string, args ...interface{})
+
+	// Returns address, that starts invoke the chain
+	Origin() addr.Address
+
+	// Returns origin address-reciever of message
+	RecieverAddress() addr.Address
+
+	// GetActorBalance get balance by address
+	// In case if actor not exist will return zero
+	GetActorBalance(addr.Address) big.Int
+
+	// TransferTokens transfer tokens from address, to address and value
+	// Used only with secp256k1 and actor addresses
+	// Will call vm send
+	TransferTokens(addr.Address, addr.Address, big.Int)
+
+	// Delete contract actor by address
+	// Can be called only by ContractActor
+	DeleteContractActor(addr.Address)
+
+	// Returns new unique contract actor address
+	// that depends on caller address,
+	// contract code and caller nonce
+	// argument is contract code
+	// returns address and salt used for it generation
+	NewContractActorAddress([]byte) (addr.Address, []byte)
+
+	//Get actor nonce from stateTree
+	GetNonce(addr.Address) uint64
+
+	//Set actor nonce to new value
+	SetNonce(addr.Address, uint64)
 }
 
 // Store defines the storage module exposed to actors.

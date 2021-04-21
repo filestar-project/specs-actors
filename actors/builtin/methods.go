@@ -16,9 +16,10 @@ var MethodsAccount = struct {
 }{MethodConstructor, 2}
 
 var MethodsInit = struct {
-	Constructor abi.MethodNum
-	Exec        abi.MethodNum
-}{MethodConstructor, 2}
+	Constructor    abi.MethodNum
+	Exec           abi.MethodNum
+	ExecWithResult abi.MethodNum
+}{MethodConstructor, 2, 3}
 
 var MethodsCron = struct {
 	Constructor abi.MethodNum
@@ -109,3 +110,8 @@ var MethodsVerifiedRegistry = struct {
 	UseBytes          abi.MethodNum
 	RestoreBytes      abi.MethodNum
 }{MethodConstructor, 2, 3, 4, 5, 6}
+
+var MethodsContract = struct {
+	Constructor  abi.MethodNum
+	CallContract abi.MethodNum
+}{MethodConstructor, 2}
