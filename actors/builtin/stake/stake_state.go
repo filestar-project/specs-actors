@@ -25,6 +25,7 @@ type State struct {
 	MaxRewardPerRound     abi.TokenAmount
 	InflationFactor       big.Int
 	LastRoundReward       abi.TokenAmount
+	StakePeriodStart      abi.ChainEpoch
 	NextRoundEpoch        abi.ChainEpoch
 
 	LockedPrincipalMap    cid.Cid // Map, (HAMT[address]LockedPrincipalsCid)
@@ -45,6 +46,7 @@ func ConstructState(params *ConstructorParams, emptyMapCid cid.Cid) *State {
 		MaxRewardPerRound:     params.MaxRewardPerRound,
 		InflationFactor:       params.InflationFactor,
 		LastRoundReward:       abi.NewTokenAmount(0),
+		StakePeriodStart:      params.FirstRoundEpoch,
 		NextRoundEpoch:        params.FirstRoundEpoch,
 		LockedPrincipalMap:    emptyMapCid,
 		AvailablePrincipalMap: emptyMapCid,

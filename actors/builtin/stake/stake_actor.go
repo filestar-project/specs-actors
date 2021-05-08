@@ -438,7 +438,7 @@ func (a Actor) OnEpochTickEnd(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 									vestingFunds = ConstructVestingFunds()
 								}
 							}
-							vestingFunds.addLockedFunds(currEpoch, reward, currEpoch, &RewardVestingSpec)
+							vestingFunds.addLockedFunds(currEpoch, reward, st.StakePeriodStart, &RewardVestingSpec)
 							newVestingRewards[staker] = vestingFunds
 						}
 						return nil
