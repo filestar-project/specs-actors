@@ -3,6 +3,7 @@ package reward
 import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/specs-actors/v2/actors/util/smoothing"
 )
@@ -82,7 +83,7 @@ func ConstructState(currRealizedPower abi.StoragePower) *State {
 		BaselineTotal: DefaultBaselineTotal,
 	}
 
-	st.updateToNextEpochWithReward(currRealizedPower)
+	st.updateToNextEpochWithReward(currRealizedPower, network.Version0)
 
 	return st
 }
@@ -104,12 +105,14 @@ func (st *State) updateToNextEpoch(currRealizedPower abi.StoragePower) {
 
 // Takes in a current realized power for a reward epoch and computes
 // and updates reward state to track reward for the next epoch
-func (st *State) updateToNextEpochWithReward(currRealizedPower abi.StoragePower) {
+func (st *State) updateToNextEpochWithReward(currRealizedPower abi.StoragePower, nv network.Version) {
 	prevRewardTheta := ComputeRTheta(st.EffectiveNetworkTime, st.EffectiveBaselinePower, st.CumsumRealized, st.CumsumBaseline)
 	st.updateToNextEpoch(currRealizedPower)
 	currRewardTheta := ComputeRTheta(st.EffectiveNetworkTime, st.EffectiveBaselinePower, st.CumsumRealized, st.CumsumBaseline)
-
 	st.ThisEpochReward = computeReward(st.Epoch, prevRewardTheta, currRewardTheta, st.SimpleTotal, st.BaselineTotal)
+	if nv >= network.Version8 {
+		st.ThisEpochReward = big.Div(big.Mul(st.ThisEpochReward, big.NewInt(70)), big.NewInt(100))
+	}
 }
 
 func (st *State) updateSmoothedEstimates(delta abi.ChainEpoch) {

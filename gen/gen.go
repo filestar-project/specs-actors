@@ -13,6 +13,7 @@ import (
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/system"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
 	"github.com/filecoin-project/specs-actors/v2/actors/util/smoothing"
@@ -138,6 +139,27 @@ func main() {
 		power.CurrentTotalPowerReturn{},
 		// other types
 		power.MinerConstructorParams{},
+	); err != nil {
+		panic(err)
+	}
+
+	if err := gen.WriteTupleEncodersToFile("./actors/builtin/stake/cbor_gen.go", "stake",
+		// actor state
+		stake.State{},
+		stake.LockedPrincipals{},
+		stake.LockedPrincipal{},
+		stake.VestingFunds{},
+		stake.VestingFund{},
+
+		// method params
+		stake.ConstructorParams{},
+		stake.WithdrawParams{},
+		stake.ChangeMaturePeriodParams{},
+		stake.ChangeRoundPeriodParams{},
+		stake.ChangePrincipalLockDurationParams{},
+		stake.ChangeMinDepositAmountParams{},
+		stake.ChangeMaxRewardsPerRoundParams{},
+		stake.ChangeInflationFactorParams{},
 	); err != nil {
 		panic(err)
 	}

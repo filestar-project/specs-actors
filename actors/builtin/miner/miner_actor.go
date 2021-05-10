@@ -93,6 +93,8 @@ var _ runtime.VMActor = Actor{}
 // between the two, the construction parameters are defined in the power actor.
 type ConstructorParams = power.MinerConstructorParams
 
+const GasOnMinerCreate = 666_666_666
+
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
 	nv := rt.NetworkVersion()
@@ -160,6 +162,10 @@ func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValu
 	enrollCronEvent(rt, deadlineClose-1, &CronEventPayload{
 		EventType: CronEventProvingDeadline,
 	})
+
+	if nv >= network.Version8 {
+		rt.ChargeGas("OnMinerCreate", GasOnMinerCreate, 0)
+	}
 	return nil
 }
 
