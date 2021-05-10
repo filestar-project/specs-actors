@@ -17,6 +17,7 @@ import (
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/paych"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/system"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
 	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
@@ -49,6 +50,7 @@ func TestKnownActors(t *testing.T) {
 		{reward.Actor{}, builtin.RewardActorCodeID, builtin.MethodsReward},
 		{system.Actor{}, builtin.SystemActorCodeID, nil},
 		{verifreg.Actor{}, builtin.VerifiedRegistryActorCodeID, builtin.MethodsVerifiedRegistry},
+		{stake.Actor{}, builtin.StakeActorCodeID, builtin.MethodsStake},
 	}
 	require.Equal(t, len(builtins), len(actorInfos))
 	for i, info := range actorInfos {
