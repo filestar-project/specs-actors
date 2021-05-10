@@ -111,16 +111,16 @@ var MethodsVerifiedRegistry = struct {
 }{MethodConstructor, 2, 3, 4, 5, 6}
 
 var MethodsStake = struct {
-	Constructor                   abi.MethodNum
-	Deposit                       abi.MethodNum
-	WithdrawPrincipal             abi.MethodNum
-	WithdrawReward                abi.MethodNum
-	ChangeMaturePeriod            abi.MethodNum
-	ChangeRoundPeriod             abi.MethodNum
-	ChangePrincipalUnlockDuration abi.MethodNum
-	ChangeMinDepositAmount        abi.MethodNum
-	ChangeMaxRewardsPerRound      abi.MethodNum
-	ChangeInflationFactor         abi.MethodNum
-	ChangeRootKey                 abi.MethodNum
-	OnEpochTickEnd                abi.MethodNum
+	Constructor                 abi.MethodNum
+	Deposit                     abi.MethodNum
+	WithdrawPrincipal           abi.MethodNum
+	WithdrawReward              abi.MethodNum
+	ChangeMaturePeriod          abi.MethodNum
+	ChangeRoundPeriod           abi.MethodNum
+	ChangePrincipalLockDuration abi.MethodNum
+	ChangeMinDepositAmount      abi.MethodNum
+	ChangeMaxRewardsPerRound    abi.MethodNum
+	ChangeInflationFactor       abi.MethodNum
+	ChangeRootKey               abi.MethodNum
+	OnEpochTickEnd              abi.MethodNum
 }{MethodConstructor, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
