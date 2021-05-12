@@ -65,7 +65,7 @@ func TestConstructor(t *testing.T) {
 	})
 }
 
-func TestDepositWithdraw(t *testing.T) {
+func TestStake(t *testing.T) {
 	actor := stakeHarness{stake.Actor{}, t}
 	admin := tutil.NewIDAddr(t, 100)
 	staker1 := tutil.NewIDAddr(t, 101)
@@ -172,7 +172,7 @@ func TestDepositWithdraw(t *testing.T) {
 		assert.Nil(t, err)
 		assert.False(t, found)
 
-		assert.Equal(t, abi.NewStoragePower(300_000_000), st.TotalStakePower)
+		assert.Equal(t, abi.NewStakePower(300_000_000), st.TotalStakePower)
 		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
 		assert.Nil(t, err)
 		vfsr1, found, err := st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
@@ -245,6 +245,124 @@ func TestDepositWithdraw(t *testing.T) {
 		assert.Equal(t, 361, len(vfsr1.Funds))
 		assert.Equal(t, abi.NewTokenAmount(4965076367), total1)
 	})
+
+	t.Run("re-deposit", func(t *testing.T) {
+		rt := mock.NewBuilder(context.Background(), builtin.StakeActorAddr).
+			WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID).
+			WithEpoch(abi.ChainEpoch(0)).
+			Build(t)
+		params := stake.ConstructorParams{
+			RootKey:               admin,
+			MaturePeriod:          abi.ChainEpoch(10),
+			RoundPeriod:           abi.ChainEpoch(20),
+			PrincipalLockDuration: abi.ChainEpoch(30),
+			FirstRoundEpoch:       abi.ChainEpoch(3),
+			MinDepositAmount:      abi.NewTokenAmount(100_000_000),
+			MaxRewardPerRound:     abi.NewTokenAmount(100_000_000_000),
+			InflationFactor:       big.NewInt(100),
+		}
+		actor.constructAndVerify(rt, &params)
+		actor.onEpochTickEnd(rt, abi.ChainEpoch(1))
+		actor.onEpochTickEnd(rt, abi.ChainEpoch(2))
+		actor.onEpochTickEnd(rt, abi.ChainEpoch(3))
+
+		actor.deposit(rt, abi.ChainEpoch(4), staker1, abi.NewTokenAmount(100_000_000))
+		for epoch := 4; epoch <= 35; epoch += 1 {
+			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
+		}
+		st := getState(rt)
+		vestingRewardMap, err := adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		assert.Nil(t, err)
+		vfsr1, found, err := st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		total1 := abi.NewTokenAmount(0)
+		for _, vf := range vfsr1.Funds {
+			total1 = big.Add(total1, vf.Amount)
+		}
+		assert.Equal(t, abi.NewTokenAmount(1_000_000), total1)
+		availablePrincipalMap, err := adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		assert.Nil(t, err)
+		var ap1 abi.TokenAmount
+		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, abi.NewTokenAmount(100_000_000), ap1)
+		var sp1 abi.StakePower
+		stakePowerMap, err := adt.AsMap(rt.AdtStore(), st.StakePowerMap)
+		assert.Nil(t, err)
+		found, err = stakePowerMap.Get(abi.AddrKey(staker1), &sp1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, abi.NewTokenAmount(100_000_000), sp1)
+
+		actor.withdrawPrincipal(rt, abi.ChainEpoch(36), staker1, abi.NewTokenAmount(100_000_000))
+		actor.onEpochTickEnd(rt, abi.ChainEpoch(36))
+		st = getState(rt)
+		availablePrincipalMap, err = adt.AsMap(rt.AdtStore(), st.AvailablePrincipalMap)
+		assert.Nil(t, err)
+		found, err = availablePrincipalMap.Get(abi.AddrKey(staker1), &ap1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, abi.NewTokenAmount(0), ap1)
+
+		stakePowerMap, err = adt.AsMap(rt.AdtStore(), st.StakePowerMap)
+		assert.Nil(t, err)
+		found, err = stakePowerMap.Get(abi.AddrKey(staker1), &sp1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, abi.NewTokenAmount(0), sp1)
+
+		var ar1 abi.TokenAmount
+		availableRewardMap, err := adt.AsMap(rt.AdtStore(), st.AvailableRewardMap)
+		assert.Nil(t, err)
+		found, err = availableRewardMap.Get(abi.AddrKey(staker1), &ar1)
+		assert.Nil(t, err)
+		assert.False(t, found)
+
+		// 180 days later
+		for epoch := 37; epoch <= 522723; epoch += 1 {
+			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
+		}
+		st = getState(rt)
+		availableRewardMap, err = adt.AsMap(rt.AdtStore(), st.AvailableRewardMap)
+		assert.Nil(t, err)
+		found, err = availableRewardMap.Get(abi.AddrKey(staker1), &ar1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, abi.NewTokenAmount(1_000_000), ar1)
+
+		vestingRewardMap, err = adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		assert.Nil(t, err)
+		vfsr1, found, err = st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, 0, len(vfsr1.Funds))
+
+		actor.deposit(rt, abi.ChainEpoch(522724), staker1, abi.NewTokenAmount(100_000_000))
+		for epoch := 522724; epoch <= 522724+30; epoch += 1 {
+			actor.onEpochTickEnd(rt, abi.ChainEpoch(epoch))
+		}
+		st = getState(rt)
+		vestingRewardMap, err = adt.AsMap(rt.AdtStore(), st.VestingRewardMap)
+		assert.Nil(t, err)
+		vfsr1, found, err = st.LoadVestingFunds(rt.AdtStore(), vestingRewardMap, staker1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		total1 = abi.NewTokenAmount(0)
+		for _, vf := range vfsr1.Funds {
+			total1 = big.Add(total1, vf.Amount)
+		}
+		assert.Equal(t, abi.NewTokenAmount(1_000_000), total1)
+
+		stakePowerMap, err = adt.AsMap(rt.AdtStore(), st.StakePowerMap)
+		assert.Nil(t, err)
+		found, err = stakePowerMap.Get(abi.AddrKey(staker1), &sp1)
+		assert.Nil(t, err)
+		assert.True(t, found)
+		assert.Equal(t, abi.NewTokenAmount(100_000_000), sp1)
+	})
+
 }
 
 type stakeHarness struct {
