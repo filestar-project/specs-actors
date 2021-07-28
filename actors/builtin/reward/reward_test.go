@@ -21,7 +21,7 @@ func TestExports(t *testing.T) {
 	mock.CheckActorExports(t, reward.Actor{})
 }
 
-const EpochZeroReward = "36266264293777134739"
+const EpochZeroReward = "46157063646625444213"
 
 func TestConstructor(t *testing.T) {
 	actor := rewardHarness{reward.Actor{}, t}
