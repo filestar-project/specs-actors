@@ -165,7 +165,6 @@ func TestTerminateSectors(t *testing.T) {
 			{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.ThisEpochReward, SubInvocations: noSubinvocations},
 			{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower, SubInvocations: noSubinvocations},
 			{To: builtin.BurntFundsActorAddr, Method: builtin.MethodSend, SubInvocations: noSubinvocations},
-			{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdatePledgeTotal, SubInvocations: noSubinvocations},
 			{To: builtin.StorageMarketActorAddr, Method: builtin.MethodsMarket.OnMinerSectorsTerminate, SubInvocations: noSubinvocations},
 			{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdateClaimedPower, SubInvocations: noSubinvocations},
 		},
