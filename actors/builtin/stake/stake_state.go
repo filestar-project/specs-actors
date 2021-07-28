@@ -8,7 +8,7 @@ import (
 	"reflect"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/adt"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
 	cid "github.com/ipfs/go-cid"
 )
 

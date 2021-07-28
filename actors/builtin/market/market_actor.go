@@ -17,13 +17,13 @@ import (
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
-	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
-	. "github.com/filecoin-project/specs-actors/v2/actors/util"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/adt"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
+	"github.com/filecoin-project/specs-actors/v3/actors/runtime"
+	. "github.com/filecoin-project/specs-actors/v3/actors/util"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
 )
 
 type Actor struct{}
