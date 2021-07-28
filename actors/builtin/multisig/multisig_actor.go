@@ -3,6 +3,7 @@ package multisig
 import (
 	"bytes"
 	"fmt"
+	"github.com/filecoin-project/go-state-types/big"
 
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -461,6 +462,10 @@ func (a Actor) LockBalance(rt runtime.Runtime, params *LockBalanceParams) *abi.E
 	if params.UnlockDuration <= 0 {
 		// Note: Unlock duration of zero is workable, but rejected as ineffective, probably an error.
 		rt.Abortf(exitcode.ErrIllegalArgument, "unlock duration must be positive")
+	}
+
+	if params.Amount.LessThan(big.Zero()) {
+		rt.Abortf(exitcode.ErrIllegalArgument, "amount to lock must be positive")
 	}
 
 	var st State
