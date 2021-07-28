@@ -4,17 +4,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 
-	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v3/actors/util/math"
-)
-
-const (
-	// This number is not exported because it's not suitable for
-	// calculations outside reward calculations. Importantly, there are more
-	// than 365 days in a year so this number cannot be used to calculate
-	// sector lifetimes, etc.
-	daysInYear   = 365
-	epochsInYear = daysInYear * builtin.EpochsInDay
 )
 
 // Baseline function = BaselineInitialValue * (BaselineExponent) ^(t), t in epochs
