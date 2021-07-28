@@ -4454,6 +4454,7 @@ type preCommitConf struct {
 	dealWeight         abi.DealWeight
 	verifiedDealWeight abi.DealWeight
 	dealSpace          abi.SectorSize
+	pledgeDelta        *abi.TokenAmount
 }
 
 func (h *actorHarness) preCommitSector(rt *mock.Runtime, params *miner.PreCommitSectorParams, conf preCommitConf) *miner.SectorPreCommitOnChainInfo {
@@ -4486,9 +4487,10 @@ func (h *actorHarness) preCommitSector(rt *mock.Runtime, params *miner.PreCommit
 	}
 	st := getState(rt)
 
-	pledgeDelta := immediatelyVestingFunds(rt, st).Neg()
-	if !pledgeDelta.IsZero() {
-		rt.ExpectSend(builtin.StoragePowerActorAddr, builtin.MethodsPower.UpdatePledgeTotal, &pledgeDelta, big.Zero(), nil, exitcode.Ok)
+	if conf.pledgeDelta != nil {
+		if !conf.pledgeDelta.IsZero() {
+			rt.ExpectSend(builtin.StoragePowerActorAddr, builtin.MethodsPower.UpdatePledgeTotal, conf.pledgeDelta, big.Zero(), nil, exitcode.Ok)
+		}
 	}
 
 	if st.FeeDebt.GreaterThan(big.Zero()) {
@@ -4503,7 +4505,8 @@ func (h *actorHarness) preCommitSector(rt *mock.Runtime, params *miner.PreCommit
 // Options for proveCommitSector behaviour.
 // Default zero values should let everything be ok.
 type proveCommitConf struct {
-	verifyDealsExit map[abi.SectorNumber]exitcode.ExitCode
+	verifyDealsExit    map[abi.SectorNumber]exitcode.ExitCode
+	vestingPledgeDelta *abi.TokenAmount
 }
 
 func (h *actorHarness) proveCommitSector(rt *mock.Runtime, precommit *miner.SectorPreCommitOnChainInfo, params *miner.ProveCommitSectorParams) {
@@ -4602,6 +4605,10 @@ func (h *actorHarness) confirmSectorProofsValid(rt *mock.Runtime, conf proveComm
 
 				expectPledge = big.Add(expectPledge, pledge)
 			}
+		}
+
+		if conf.vestingPledgeDelta != nil {
+			expectPledge = big.Add(expectPledge, *conf.vestingPledgeDelta)
 		}
 
 		if !expectPledge.IsZero() {
