@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
@@ -30,6 +31,7 @@ func CheckStateInvariants(tree *Tree, expectedBalanceTotal abi.TokenAmount, prio
 	var verifregSummary *verifreg.StateSummary
 	var marketSummary *market.StateSummary
 	var accountSummaries []*account.StateSummary
+	var rewardSummary *reward.StateSummary
 	var powerSummary *power.StateSummary
 	var paychSummaries []*paych.StateSummary
 	var multisigSummaries []*multisig.StateSummary
@@ -135,6 +137,16 @@ func CheckStateInvariants(tree *Tree, expectedBalanceTotal abi.TokenAmount, prio
 			}
 
 		case builtin.RewardActorCodeID:
+			var st reward.State
+			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
+				return err
+			}
+			if summary, msgs, err := reward.CheckStateInvariants(&st, tree.Store, priorEpoch, actor.Balance); err != nil {
+				return err
+			} else {
+				acc.WithPrefix("reward: ").AddAll(msgs)
+				rewardSummary = summary
+			}
 
 		case builtin.VerifiedRegistryActorCodeID:
 			var st verifreg.State
@@ -167,6 +179,7 @@ func CheckStateInvariants(tree *Tree, expectedBalanceTotal abi.TokenAmount, prio
 	_ = verifregSummary
 	_ = cronSummary
 	_ = marketSummary
+	_ = rewardSummary
 
 	if !totalFIl.Equals(expectedBalanceTotal) {
 		acc.Addf("total token balance is %v, expected %v", totalFIl, expectedBalanceTotal)
