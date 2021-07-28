@@ -52,46 +52,35 @@ func CheckStateInvariants(tree *Tree, expectedBalanceTotal abi.TokenAmount, prio
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := init_.CheckStateInvariants(&st, tree.Store); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("init: ").AddAll(msgs)
-				initSummary = summary
-			}
+			summary, msgs := init_.CheckStateInvariants(&st, tree.Store)
+			acc.WithPrefix("init: ").AddAll(msgs)
+			initSummary = summary
 		case builtin.CronActorCodeID:
 			var st cron.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := cron.CheckStateInvariants(&st, tree.Store); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("cron: ").AddAll(msgs)
-				cronSummary = summary
-			}
+			summary, msgs := cron.CheckStateInvariants(&st, tree.Store)
+			acc.WithPrefix("cron: ").AddAll(msgs)
+			cronSummary = summary
 
 		case builtin.AccountActorCodeID:
 			var st account.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := account.CheckStateInvariants(&st, key); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("account: ").AddAll(msgs)
-				accountSummaries = append(accountSummaries, summary)
-			}
+			summary, msgs := account.CheckStateInvariants(&st, key)
+			acc.WithPrefix("account: ").AddAll(msgs)
+			accountSummaries = append(accountSummaries, summary)
+
 		case builtin.StoragePowerActorCodeID:
 			var st power.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := power.CheckStateInvariants(&st, tree.Store); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("power: ").AddAll(msgs)
-				powerSummary = summary
-			}
+			summary, msgs := power.CheckStateInvariants(&st, tree.Store)
+			acc.WithPrefix("power: ").AddAll(msgs)
+			powerSummary = summary
 		case builtin.StorageMinerActorCodeID:
 			var st miner.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
@@ -105,60 +94,46 @@ func CheckStateInvariants(tree *Tree, expectedBalanceTotal abi.TokenAmount, prio
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := market.CheckStateInvariants(&st, tree.Store, actor.Balance, priorEpoch); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("market: ").AddAll(msgs)
-				marketSummary = summary
-			}
+			summary, msgs := market.CheckStateInvariants(&st, tree.Store, actor.Balance, priorEpoch)
+			acc.WithPrefix("market: ").AddAll(msgs)
+			marketSummary = summary
 
 		case builtin.PaymentChannelActorCodeID:
 			var st paych.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := paych.CheckStateInvariants(&st, tree.Store, actor.Balance); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("paych: ").AddAll(msgs)
-				paychSummaries = append(paychSummaries, summary)
-			}
+			summary, msgs := paych.CheckStateInvariants(&st, tree.Store, actor.Balance)
+			acc.WithPrefix("paych: ").AddAll(msgs)
+			paychSummaries = append(paychSummaries, summary)
 
 		case builtin.MultisigActorCodeID:
 			var st multisig.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := multisig.CheckStateInvariants(&st, tree.Store); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("multisig: ").AddAll(msgs)
-				multisigSummaries = append(multisigSummaries, summary)
-			}
+			summary, msgs := multisig.CheckStateInvariants(&st, tree.Store)
+			acc.WithPrefix("multisig: ").AddAll(msgs)
+			multisigSummaries = append(multisigSummaries, summary)
 
 		case builtin.RewardActorCodeID:
 			var st reward.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := reward.CheckStateInvariants(&st, tree.Store, priorEpoch, actor.Balance); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("reward: ").AddAll(msgs)
-				rewardSummary = summary
-			}
+			summary, msgs := reward.CheckStateInvariants(&st, tree.Store, priorEpoch, actor.Balance)
+			acc.WithPrefix("reward: ").AddAll(msgs)
+			rewardSummary = summary
 
 		case builtin.VerifiedRegistryActorCodeID:
 			var st verifreg.State
 			if err := tree.Store.Get(tree.Store.Context(), actor.Head, &st); err != nil {
 				return err
 			}
-			if summary, msgs, err := verifreg.CheckStateInvariants(&st, tree.Store); err != nil {
-				return err
-			} else {
-				acc.WithPrefix("verifreg: ").AddAll(msgs)
-				verifregSummary = summary
-			}
+			summary, msgs := verifreg.CheckStateInvariants(&st, tree.Store)
+			acc.WithPrefix("verifreg: ").AddAll(msgs)
+			verifregSummary = summary
+
 		default:
 			return xerrors.Errorf("unexpected actor code CID %v for address %v", actor.Code, key)
 
