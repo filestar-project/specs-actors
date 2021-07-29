@@ -26,4 +26,4 @@ require (
 )
 
 replace github.com/filecoin-project/go-state-types => github.com/filestar-project/go-state-types v0.1.0
-replace github.com/filecoin-project/specs-actors/v2 => github.com/filestar-project/specs-actors/v2 v2.1.1
+replace github.com/filecoin-project/specs-actors/v2 => github.com/filestar-project/specs-actors/v2 v2.1.2

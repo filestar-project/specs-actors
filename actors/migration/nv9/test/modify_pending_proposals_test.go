@@ -42,7 +42,7 @@ func TestUpdatePendingDealsMigration(t *testing.T) {
 	params := power2.CreateMinerParams{
 		Owner:         worker,
 		Worker:        worker,
-		SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1_1,
+		SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
 		Peer:          abi.PeerID("not really a peer id"),
 	}
 	ret := vm2.ApplyOk(t, v, addrs[0], builtin.StoragePowerActorAddr, minerBalance, builtin.MethodsPower.CreateMiner, &params)
@@ -99,7 +99,7 @@ func TestUpdatePendingDealsMigration(t *testing.T) {
 	// precommit capacity upgrade sector with deals
 	sectorNumber := abi.SectorNumber(100)
 	sealedCid := tutil.MakeCID("100", &miner3.SealedCIDPrefix)
-	sealProof := abi.RegisteredSealProof_StackedDrg32GiBV1_1
+	sealProof := abi.RegisteredSealProof_StackedDrg32GiBV1
 	preCommitParams := miner3.PreCommitSectorParams{
 		SealProof:     sealProof,
 		SectorNumber:  sectorNumber,
