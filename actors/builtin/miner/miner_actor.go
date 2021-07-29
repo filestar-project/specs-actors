@@ -14,7 +14,6 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filecoin-project/go-state-types/network"
 	rtt "github.com/filecoin-project/go-state-types/rt"
 	miner0 "github.com/filecoin-project/specs-actors/actors/builtin/miner"
 	cid "github.com/ipfs/go-cid"
@@ -97,16 +96,11 @@ const GasOnMinerCreate = 666_666_666
 
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.InitActorAddr)
-	nv := rt.NetworkVersion()
 
 	checkControlAddresses(rt, params.ControlAddrs)
 	checkPeerInfo(rt, params.PeerId, params.Multiaddrs)
 
-	if params.SealProofType == abi.RegisteredSealProof_StackedDrg8GiBV1 {
-		if nv < network.Version7 {
-			rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
-		}
-	} else {
+	if params.SealProofType != abi.RegisteredSealProof_StackedDrg8GiBV1 {
 		_, ok := SupportedProofTypes[params.SealProofType]
 		if !ok {
 			rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
@@ -144,9 +138,8 @@ func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValu
 		EventType: CronEventProvingDeadline,
 	})
 
-	if nv >= network.Version8 {
-		rt.ChargeGas("OnMinerCreate", GasOnMinerCreate, 0)
-	}
+	rt.ChargeGas("OnMinerCreate", GasOnMinerCreate, 0)
+
 	return nil
 }
 
@@ -505,12 +498,7 @@ type PreCommitSectorParams = miner0.SectorPreCommitInfo
 // Proposals must be posted on chain via sma.PublishStorageDeals before PreCommitSector.
 // Optimization: PreCommitSector could contain a list of deals that are not published yet.
 func (a Actor) PreCommitSector(rt Runtime, params *PreCommitSectorParams) *abi.EmptyValue {
-	nv := rt.NetworkVersion()
-	if params.SealProof == abi.RegisteredSealProof_StackedDrg8GiBV1 {
-		if nv < network.Version7 {
-			rt.Abortf(exitcode.ErrIllegalArgument, "unsupported seal proof type: %s", params.SealProof)
-		}
-	} else {
+	if params.SealProof != abi.RegisteredSealProof_StackedDrg8GiBV1 {
 		if _, ok := SupportedProofTypes[params.SealProof]; !ok {
 			rt.Abortf(exitcode.ErrIllegalArgument, "unsupported seal proof type: %s", params.SealProof)
 		}
@@ -665,16 +653,12 @@ type ProveCommitSectorParams = miner0.ProveCommitSectorParams
 // If valid, the power actor will call ConfirmSectorProofsValid at the end of the same epoch as this message.
 func (a Actor) ProveCommitSector(rt Runtime, params *ProveCommitSectorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
-	nv := rt.NetworkVersion()
 
 	if params.SectorNumber > abi.MaxSectorNumber {
 		rt.Abortf(exitcode.ErrIllegalArgument, "sector number greater than maximum")
 	}
 
-	maxProofSize := MaxProveCommitSizeV4
-	if nv >= network.Version5 {
-		maxProofSize = MaxProveCommitSizeV5
-	}
+	maxProofSize := MaxProveCommitSize
 	if len(params.Proof) > maxProofSize {
 		rt.Abortf(exitcode.ErrIllegalArgument, "sector prove-commit proof of size %d exceeds max size of %d",
 			len(params.Proof), maxProofSize)
@@ -1490,7 +1474,6 @@ func (a Actor) ApplyRewards(rt Runtime, params *builtin.ApplyRewardParams) *abi.
 	if params.Penalty.Sign() < 0 {
 		rt.Abortf(exitcode.ErrIllegalArgument, "cannot penalize a negative amount of funds")
 	}
-	nv := rt.NetworkVersion()
 
 	var st State
 	pledgeDeltaTotal := big.Zero()
@@ -1500,7 +1483,7 @@ func (a Actor) ApplyRewards(rt Runtime, params *builtin.ApplyRewardParams) *abi.
 		store := adt.AsStore(rt)
 		rt.ValidateImmediateCallerIs(builtin.RewardActorAddr)
 
-		rewardToLock, lockedRewardVestingSpec := LockedRewardFromReward(params.Reward, nv)
+		rewardToLock, lockedRewardVestingSpec := LockedRewardFromReward(params.Reward)
 
 		// This ensures the miner has sufficient funds to lock up amountToLock.
 		// This should always be true if reward actor sends reward funds with the message.

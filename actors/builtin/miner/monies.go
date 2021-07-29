@@ -4,8 +4,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filecoin-project/go-state-types/network"
-
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v3/actors/util/math"
 	"github.com/filecoin-project/specs-actors/v3/actors/util/smoothing"
@@ -163,7 +161,7 @@ func ConsensusFaultPenalty(thisEpochReward abi.TokenAmount) abi.TokenAmount {
 }
 
 // Returns the amount of a reward to vest, and the vesting schedule, for a reward amount.
-func LockedRewardFromReward(reward abi.TokenAmount, nv network.Version) (abi.TokenAmount, *VestSpec) {
+func LockedRewardFromReward(reward abi.TokenAmount) (abi.TokenAmount, *VestSpec) {
 	lockAmount := reward
 	spec := &RewardVestingSpec
 	return lockAmount, spec

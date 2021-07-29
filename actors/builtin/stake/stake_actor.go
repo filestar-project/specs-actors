@@ -6,7 +6,6 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v3/actors/runtime"
 	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
@@ -75,10 +74,6 @@ const GasOnStakeDeposit = 888_888_888
 
 func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
-	nv := rt.NetworkVersion()
-	if nv < network.Version8 {
-		rt.Abortf(exitcode.ErrForbidden, "stake deposit not allowed")
-	}
 
 	depositAmount := rt.ValueReceived()
 	staker := rt.Caller()

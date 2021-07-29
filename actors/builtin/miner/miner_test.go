@@ -16,7 +16,6 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/dline"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filecoin-project/go-state-types/network"
 	cid "github.com/ipfs/go-cid"
 	"github.com/minio/blake2b-simd"
 	"github.com/stretchr/testify/assert"
@@ -742,17 +741,8 @@ func TestCommitments(t *testing.T) {
 
 		rt.SetBalance(big.Mul(big.NewInt(1000), big.NewInt(1e18)))
 
-		// Too big at version 4
 		proveCommit := makeProveCommit(sectorNo)
 		proveCommit.Proof = make([]byte, 1920)
-		rt.SetNetworkVersion(network.Version4)
-		rt.ExpectAbort(exitcode.ErrIllegalArgument, func() {
-			actor.proveCommitSectorAndConfirm(rt, precommit, proveCommit, proveCommitConf{})
-		})
-		rt.Reset()
-
-		// Good proof at version 5
-		rt.SetNetworkVersion(network.Version5)
 		actor.proveCommitSectorAndConfirm(rt, precommit, proveCommit, proveCommitConf{})
 		st := getState(rt)
 
@@ -3096,7 +3086,7 @@ func TestRepayDebts(t *testing.T) {
 		actor.constructAndVerify(rt)
 
 		rewardAmount := big.Mul(big.NewInt(4), big.NewInt(1e18))
-		amountLocked, _ := miner.LockedRewardFromReward(rewardAmount, rt.NetworkVersion())
+		amountLocked, _ := miner.LockedRewardFromReward(rewardAmount)
 		rt.SetBalance(amountLocked)
 		actor.applyRewards(rt, rewardAmount, big.Zero())
 		require.Equal(t, amountLocked, actor.getLockedFunds(rt))
@@ -3970,27 +3960,14 @@ func TestApplyRewards(t *testing.T) {
 		WithBalance(bigBalance, big.Zero())
 
 	t.Run("funds are locked", func(t *testing.T) {
-		{
-			rt := builder.Build(t)
-			rt.SetNetworkVersion(network.Version5)
-			actor.constructAndVerify(rt)
+		rt := builder.Build(t)
+		actor.constructAndVerify(rt)
 
-			rwd := abi.NewTokenAmount(1_000_000)
-			actor.applyRewards(rt, rwd, big.Zero())
+		rwd := abi.NewTokenAmount(1_000_000)
+		actor.applyRewards(rt, rwd, big.Zero())
 
-			assert.Equal(t, rwd, actor.getLockedFunds(rt))
-		}
-		{
-			rt := builder.Build(t)
-			rt.SetNetworkVersion(network.Version6)
-			actor.constructAndVerify(rt)
-
-			rwd := abi.NewTokenAmount(1_000_000)
-			actor.applyRewards(rt, rwd, big.Zero())
-
-			expected := abi.NewTokenAmount(1_000_000)
-			assert.Equal(t, expected, actor.getLockedFunds(rt))
-		}
+		expected := abi.NewTokenAmount(1_000_000)
+		assert.Equal(t, expected, actor.getLockedFunds(rt))
 	})
 
 	t.Run("funds vest", func(t *testing.T) {
@@ -4031,7 +4008,7 @@ func TestApplyRewards(t *testing.T) {
 			require.EqualValues(t, expectedOffset, int64(vf.Epoch)%int64(miner.RewardVestingSpec.Quantization))
 		}
 
-		lockedAmt, _ := miner.LockedRewardFromReward(amt, rt.NetworkVersion())
+		lockedAmt, _ := miner.LockedRewardFromReward(amt)
 		assert.Equal(t, lockedAmt, st.LockedFunds)
 		actor.checkState(rt)
 	})
@@ -4045,7 +4022,7 @@ func TestApplyRewards(t *testing.T) {
 		rt.SetBalance(big.Add(rt.Balance(), rwd))
 		actor.applyRewards(rt, rwd, penalty)
 
-		expectedLockAmt, _ := miner.LockedRewardFromReward(rwd, rt.NetworkVersion())
+		expectedLockAmt, _ := miner.LockedRewardFromReward(rwd)
 		expectedLockAmt = big.Sub(expectedLockAmt, penalty)
 		assert.Equal(t, expectedLockAmt, actor.getLockedFunds(rt))
 
@@ -4115,7 +4092,7 @@ func TestApplyRewards(t *testing.T) {
 
 		// pledge change is new reward - reward taken for fee debt
 		// 3*LockedRewardFactor*amt - 2*amt = remainingLocked
-		lockedReward, _ := miner.LockedRewardFromReward(reward, rt.NetworkVersion())
+		lockedReward, _ := miner.LockedRewardFromReward(reward)
 		remainingLocked := big.Sub(lockedReward, st.FeeDebt) // note that this would be clamped at 0 if difference above is < 0
 		pledgeDelta := remainingLocked
 		rt.SetCaller(builtin.RewardActorAddr, builtin.RewardActorCodeID)
@@ -5183,7 +5160,7 @@ func (h *actorHarness) applyRewards(rt *mock.Runtime, amt, penalty abi.TokenAmou
 	// We further assume the miner can pay the penalty.  If the miner
 	// goes into debt we can't rely on the harness call
 	// TODO unify those cases
-	lockAmt, _ := miner.LockedRewardFromReward(amt, rt.NetworkVersion())
+	lockAmt, _ := miner.LockedRewardFromReward(amt)
 	pledgeDelta := big.Sub(lockAmt, penalty)
 
 	rt.SetCaller(builtin.RewardActorAddr, builtin.RewardActorCodeID)
@@ -5560,7 +5537,7 @@ func makeDeadlineCronEventParams(t testing.TB, epoch abi.ChainEpoch) *power.Enro
 func makeProveCommit(sectorNo abi.SectorNumber) *miner.ProveCommitSectorParams {
 	return &miner.ProveCommitSectorParams{
 		SectorNumber: sectorNo,
-		Proof:        []byte("proof"),
+		Proof:        make([]byte, 1920),
 	}
 }
 
