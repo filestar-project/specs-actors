@@ -72,7 +72,10 @@ type Invocation struct {
 
 // NewVM creates a new runtime for executing messages.
 func NewVM(ctx context.Context, actorImpls ActorImplLookup, store adt.Store) *VM {
-	actors := adt.MakeEmptyMap(store, builtin.DefaultHamtBitwidth)
+	actors, err := adt.MakeEmptyMap(store, builtin.DefaultHamtBitwidth)
+	if err != nil {
+		panic(err)
+	}
 	actorRoot, err := actors.Root()
 	if err != nil {
 		panic(err)

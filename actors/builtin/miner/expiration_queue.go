@@ -2,6 +2,7 @@ package miner
 
 import (
 	"fmt"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"sort"
 
 	"github.com/filecoin-project/go-bitfield"
@@ -151,7 +152,7 @@ func (es *ExpirationSet) ValidateState() error {
 // Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.
 type ExpirationQueue struct {
 	*adt.Array
-	quant QuantSpec
+	quant builtin.QuantSpec
 }
 
 // An internal limit on the cardinality of a bitfield in a queue entry.
@@ -162,8 +163,8 @@ const entrySectorsMax = 10_000
 // Loads a queue root.
 // Epochs provided to subsequent method calls will be quantized upwards to quanta mod offsetSeed before being
 // written to/read from queue entries.
-func LoadExpirationQueue(store adt.Store, root cid.Cid, quant QuantSpec) (ExpirationQueue, error) {
-	arr, err := adt.AsArray(store, root)
+func LoadExpirationQueue(store adt.Store, root cid.Cid, quant builtin.QuantSpec, bitwidth int) (ExpirationQueue, error) {
+	arr, err := adt.AsArray(store, root, bitwidth)
 	if err != nil {
 		return ExpirationQueue{}, xerrors.Errorf("failed to load epoch queue %v: %w", root, err)
 	}
@@ -331,7 +332,7 @@ func (q ExpirationQueue) RescheduleAllAsFaults(faultExpiration abi.ChainEpoch) e
 	}
 
 	// Trim the rescheduled epochs from the queue.
-	if err = q.BatchDelete(rescheduledEpochs); err != nil {
+	if err = q.BatchDelete(rescheduledEpochs, true); err != nil {
 		return err
 	}
 
@@ -558,7 +559,7 @@ func (q ExpirationQueue) PopUntil(until abi.ChainEpoch) (*ExpirationSet, error) 
 		return nil, err
 	}
 
-	if err := q.Array.BatchDelete(poppedKeys); err != nil {
+	if err := q.Array.BatchDelete(poppedKeys, true); err != nil {
 		return nil, err
 	}
 
@@ -660,7 +661,7 @@ func (q ExpirationQueue) traverseMutate(f func(epoch abi.ChainEpoch, es *Expirat
 	}); err != nil && err != errStop {
 		return err
 	}
-	if err := q.Array.BatchDelete(epochsEmptied); err != nil {
+	if err := q.Array.BatchDelete(epochsEmptied, true); err != nil {
 		return err
 	}
 	return nil
@@ -718,7 +719,7 @@ type sectorExpirationSet struct {
 // sorted by expiration epoch, quantized.
 //
 // Note: While the result is sorted by epoch, the order of per-epoch sectors is maintained.
-func groupNewSectorsByDeclaredExpiration(sectorSize abi.SectorSize, sectors []*SectorOnChainInfo, quant QuantSpec) []sectorEpochSet {
+func groupNewSectorsByDeclaredExpiration(sectorSize abi.SectorSize, sectors []*SectorOnChainInfo, quant builtin.QuantSpec) []sectorEpochSet {
 	sectorsByExpiration := make(map[abi.ChainEpoch][]*SectorOnChainInfo)
 
 	for _, sector := range sectors {

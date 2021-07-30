@@ -157,9 +157,10 @@ func TestConstruction(t *testing.T) {
 		rt.AddIDAddress(control2, control2Id)
 
 		params := miner.ConstructorParams{
-			OwnerAddr:    owner,
-			WorkerAddr:   worker,
-			ControlAddrs: []addr.Address{control1, control2},
+			OwnerAddr:     owner,
+			WorkerAddr:    worker,
+			ControlAddrs:  []addr.Address{control1, control2},
+			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
 		}
 
 		provingPeriodStart := abi.ChainEpoch(-2222) // This is just set from running the code.
@@ -188,9 +189,10 @@ func TestConstruction(t *testing.T) {
 		rt.SetAddressActorType(control1, builtin.PaymentChannelActorCodeID)
 
 		params := miner.ConstructorParams{
-			OwnerAddr:    owner,
-			WorkerAddr:   worker,
-			ControlAddrs: []addr.Address{control1},
+			OwnerAddr:     owner,
+			WorkerAddr:    worker,
+			ControlAddrs:  []addr.Address{control1},
+			SealProofType: abi.RegisteredSealProof_StackedDrg2KiBV1,
 		}
 
 		rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -742,7 +744,6 @@ func TestCommitments(t *testing.T) {
 		rt.SetBalance(big.Mul(big.NewInt(1000), big.NewInt(1e18)))
 
 		proveCommit := makeProveCommit(sectorNo)
-		proveCommit.Proof = make([]byte, 1920)
 		actor.proveCommitSectorAndConfirm(rt, precommit, proveCommit, proveCommitConf{})
 		st := getState(rt)
 
@@ -1253,7 +1254,7 @@ func TestCCUpgrade(t *testing.T) {
 		}, dQueue)
 
 		// but partitions expiration set at that epoch is empty
-		queue, err := miner.LoadExpirationQueue(rt.AdtStore(), partition.ExpirationsEpochs, miner.QuantSpecForDeadline(dlInfo))
+		queue, err := miner.LoadExpirationQueue(rt.AdtStore(), partition.ExpirationsEpochs, miner.QuantSpecForDeadline(dlInfo), miner.PartitionExpirationAmtBitwidth)
 		require.NoError(t, err)
 		var es miner.ExpirationSet
 		expirationSetNotEmpty, err := queue.Get(uint64(expectedReplacedExpiration), &es)
@@ -1477,14 +1478,13 @@ func TestCCUpgrade(t *testing.T) {
 			expectedEnrollment: rt.Epoch() + miner.WPoStChallengeWindow,
 		})
 
-		//actor.checkState(rt)
-		// ExtendSectorExpiration fails to update the deadline expiration queue.
-		st = getState(rt)
-		_, msgs := miner.CheckStateInvariants(st, rt.AdtStore(), rt.Balance())
-		assert.Equal(t, 2, len(msgs.Messages()), strings.Join(msgs.Messages(), "\n"))
-		for _, msg := range msgs.Messages() {
-			assert.True(t, strings.Contains(msg, "at epoch 725919"))
-		}
+		actor.checkState(rt)
+		//st = getState(rt)
+		//_, msgs := miner.CheckStateInvariants(st, rt.AdtStore(), rt.Balance())
+		//assert.Equal(t, 2, len(msgs.Messages()), strings.Join(msgs.Messages(), "\n"))
+		//for _, msg := range msgs.Messages() {
+		//	assert.True(t, strings.Contains(msg, "at epoch 725919"))
+		//}
 	})
 
 	t.Run("fault and recover a replaced sector", func(t *testing.T) {
@@ -2651,14 +2651,7 @@ func TestExtendSectorExpiration(t *testing.T) {
 			actor.extendSectors(rt, params)
 		})
 
-		// actor.checkState(rt)
-		// ExtendSectorExpiration fails to update the deadline expiration queue.
-		st = getState(rt)
-		_, msgs := miner.CheckStateInvariants(st, rt.AdtStore(), rt.Balance())
-		assert.Equal(t, 2, len(msgs.Messages()), strings.Join(msgs.Messages(), "\n"))
-		for _, msg := range msgs.Messages() {
-			assert.True(t, strings.Contains(msg, "at epoch 5213079"))
-		}
+		actor.checkState(rt)
 	})
 
 	t.Run("updates expiration with valid params", func(t *testing.T) {
@@ -2703,14 +2696,7 @@ func TestExtendSectorExpiration(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, empty)
 
-		//actor.checkState(rt)
-		// ExtendSectorExpiration fails to update the deadline expiration queue.
-		st = getState(rt)
-		_, msgs := miner.CheckStateInvariants(st, rt.AdtStore(), rt.Balance())
-		assert.Equal(t, 2, len(msgs.Messages()), strings.Join(msgs.Messages(), "\n"))
-		for _, msg := range msgs.Messages() {
-			assert.True(t, strings.Contains(msg, "at epoch 668439"))
-		}
+		actor.checkState(rt)
 	})
 
 	t.Run("updates many sectors", func(t *testing.T) {
@@ -2799,17 +2785,7 @@ func TestExtendSectorExpiration(t *testing.T) {
 			assert.EqualValues(t, sectorCount/2, extendedTotal)
 		}
 
-		//actor.checkState(rt)
-		// ExtendSectorExpiration fails to update the deadline expiration queue.
-		st := getState(rt)
-		_, msgs := miner.CheckStateInvariants(st, rt.AdtStore(), rt.Balance())
-		assert.Equal(t, 4, len(msgs.Messages()), strings.Join(msgs.Messages(), "\n"))
-		for _, msg := range msgs.Messages()[:2] {
-			assert.True(t, strings.Contains(msg, "at epoch 668439")) // deadline 2
-		}
-		for _, msg := range msgs.Messages()[2:] {
-			assert.True(t, strings.Contains(msg, "at epoch 668499")) // deadline 3
-		}
+		actor.checkState(rt)
 	})
 
 	t.Run("supports extensions off deadline boundary", func(t *testing.T) {
@@ -3992,7 +3968,7 @@ func TestApplyRewards(t *testing.T) {
 		require.Len(t, vestingFunds.Funds, 180)
 
 		// Vested FIL pays out on epochs with expected offset
-		quantSpec := miner.NewQuantSpec(miner.RewardVestingSpec.Quantization, periodOffset)
+		quantSpec := builtin.NewQuantSpec(miner.RewardVestingSpec.Quantization, periodOffset)
 
 		currEpoch := rt.Epoch()
 		for i := range vestingFunds.Funds {
@@ -4416,7 +4392,7 @@ func (h *actorHarness) collectSectors(rt *mock.Runtime) map[abi.SectorNumber]*mi
 }
 
 func (h *actorHarness) collectDeadlineExpirations(rt *mock.Runtime, deadline *miner.Deadline) map[abi.ChainEpoch][]uint64 {
-	queue, err := miner.LoadBitfieldQueue(rt.AdtStore(), deadline.ExpirationsEpochs, miner.NoQuantization)
+	queue, err := miner.LoadBitfieldQueue(rt.AdtStore(), deadline.ExpirationsEpochs, builtin.NoQuantization, miner.DeadlineExpirationAmtBitwidth)
 	require.NoError(h.t, err)
 	expirations := map[abi.ChainEpoch][]uint64{}
 	_ = queue.ForEach(func(epoch abi.ChainEpoch, bf bitfield.BitField) error {
@@ -4429,7 +4405,7 @@ func (h *actorHarness) collectDeadlineExpirations(rt *mock.Runtime, deadline *mi
 }
 
 func (h *actorHarness) collectPartitionExpirations(rt *mock.Runtime, partition *miner.Partition) map[abi.ChainEpoch]*miner.ExpirationSet {
-	queue, err := miner.LoadExpirationQueue(rt.AdtStore(), partition.ExpirationsEpochs, miner.NoQuantization)
+	queue, err := miner.LoadExpirationQueue(rt.AdtStore(), partition.ExpirationsEpochs, builtin.NoQuantization, miner.PartitionExpirationAmtBitwidth)
 	require.NoError(h.t, err)
 	expirations := map[abi.ChainEpoch]*miner.ExpirationSet{}
 	var es miner.ExpirationSet

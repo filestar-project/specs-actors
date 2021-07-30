@@ -2,6 +2,7 @@ package miner
 
 import (
 	"errors"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/dline"
@@ -15,8 +16,8 @@ func NewDeadlineInfo(periodStart abi.ChainEpoch, deadlineIdx uint64, currEpoch a
 	return dline.NewInfo(periodStart, deadlineIdx, currEpoch, WPoStPeriodDeadlines, WPoStProvingPeriod, WPoStChallengeWindow, WPoStChallengeLookback, FaultDeclarationCutoff)
 }
 
-func QuantSpecForDeadline(di *dline.Info) QuantSpec {
-	return NewQuantSpec(WPoStProvingPeriod, di.Last())
+func QuantSpecForDeadline(di *dline.Info) builtin.QuantSpec {
+	return builtin.NewQuantSpec(WPoStProvingPeriod, di.Last())
 }
 
 // FindSector returns the deadline and partition index for a sector number.
@@ -28,7 +29,7 @@ func FindSector(store adt.Store, deadlines *Deadlines, sectorNum abi.SectorNumbe
 			return 0, 0, err
 		}
 
-		partitions, err := adt.AsArray(store, dl.Partitions)
+		partitions, err := adt.AsArray(store, dl.Partitions, DeadlinePartitionsAmtBitwidth)
 		if err != nil {
 			return 0, 0, err
 		}

@@ -8,12 +8,10 @@ build:
 
 test:
 	$(GO_BIN) test ./...
-	$(GO_BIN) test -race ./actors/migration/test
 	$(GO_BIN) test -race ./actors/migration/nv9/test
 .PHONY: test
 
 test-migration:
-	$(GO_BIN) test -race ./actors/migration/test
 	$(GO_BIN) test -race ./actors/migration/nv9/test
 .PHONY: test-migration
 

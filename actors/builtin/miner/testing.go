@@ -64,7 +64,7 @@ func CheckStateInvariants(st *State, store adt.Store, balance abi.TokenAmount) (
 
 	minerSummary.Deals = map[abi.DealID]DealSummary{}
 	var allSectors map[abi.SectorNumber]*SectorOnChainInfo
-	if sectorsArr, err := adt.AsArray(store, st.Sectors); err != nil {
+	if sectorsArr, err := adt.AsArray(store, st.Sectors, SectorsAmtBitwidth); err != nil {
 		acc.Addf("error loading sectors")
 	} else {
 		allSectors = map[abi.SectorNumber]*SectorOnChainInfo{}
@@ -126,7 +126,7 @@ type DeadlineStateSummary struct {
 	FaultyPower       PowerPair
 }
 
-func CheckDeadlineStateInvariants(deadline *Deadline, store adt.Store, quant QuantSpec, ssize abi.SectorSize,
+func CheckDeadlineStateInvariants(deadline *Deadline, store adt.Store, quant builtin.QuantSpec, ssize abi.SectorSize,
 	sectors map[abi.SectorNumber]*SectorOnChainInfo, acc *builtin.MessageAccumulator) *DeadlineStateSummary {
 
 	// Load linked structures.
@@ -255,7 +255,7 @@ func CheckDeadlineStateInvariants(deadline *Deadline, store adt.Store, quant Qua
 	{
 		// Validate partition expiration queue contains an entry for each partition and epoch with an expiration.
 		// The queue may be a superset of the partitions that have expirations because we never remove from it.
-		if expirationEpochs, err := adt.AsArray(store, deadline.ExpirationsEpochs); err != nil {
+		if expirationEpochs, err := adt.AsArray(store, deadline.ExpirationsEpochs, DeadlineExpirationAmtBitwidth); err != nil {
 			acc.Addf("error loading expiration queue: %v", err)
 		} else {
 			for epoch, expiringPIdxs := range partitionsWithExpirations { // nolint:nomaprange
@@ -313,7 +313,7 @@ type PartitionStateSummary struct {
 func CheckPartitionStateInvariants(
 	partition *Partition,
 	store adt.Store,
-	quant QuantSpec,
+	quant builtin.QuantSpec,
 	sectorSize abi.SectorSize,
 	sectors map[abi.SectorNumber]*SectorOnChainInfo,
 	acc *builtin.MessageAccumulator,
@@ -423,7 +423,7 @@ func CheckPartitionStateInvariants(
 
 	// Validate the expiration queue.
 	var expirationEpochs []abi.ChainEpoch
-	if expQ, err := LoadExpirationQueue(store, partition.ExpirationsEpochs, quant); err != nil {
+	if expQ, err := LoadExpirationQueue(store, partition.ExpirationsEpochs, quant, PartitionExpirationAmtBitwidth); err != nil {
 		acc.Addf("error loading expiration queue: %v", err)
 	} else if liveSectors != nil {
 		qsummary := CheckExpirationQueue(expQ, liveSectors, partition.Faults, quant, sectorSize, acc)
@@ -439,7 +439,7 @@ func CheckPartitionStateInvariants(
 
 	// Validate the early termination queue.
 	earlyTerminationCount := 0
-	if earlyQ, err := LoadBitfieldQueue(store, partition.EarlyTerminated, NoQuantization); err != nil {
+	if earlyQ, err := LoadBitfieldQueue(store, partition.EarlyTerminated, builtin.NoQuantization, PartitionEarlyTerminationArrayAmtBitwidth); err != nil {
 		acc.Addf("error loading early termination queue: %v", err)
 	} else {
 		earlyTerminationCount = CheckEarlyTerminationQueue(earlyQ, partition.Terminated, acc)
@@ -472,7 +472,7 @@ type ExpirationQueueStateSummary struct {
 
 // Checks the expiration queue for consistency.
 func CheckExpirationQueue(expQ ExpirationQueue, liveSectors map[abi.SectorNumber]*SectorOnChainInfo,
-	partitionFaults bitfield.BitField, quant QuantSpec, sectorSize abi.SectorSize, acc *builtin.MessageAccumulator) *ExpirationQueueStateSummary {
+	partitionFaults bitfield.BitField, quant builtin.QuantSpec, sectorSize abi.SectorSize, acc *builtin.MessageAccumulator) *ExpirationQueueStateSummary {
 	partitionFaultsMap, err := partitionFaults.AllMap(1 << 30)
 	if err != nil {
 		acc.Addf("error loading partition faults map: %v", err)
@@ -708,7 +708,7 @@ func CheckPreCommits(st *State, store adt.Store, allocatedSectors map[uint64]boo
 
 	// invert pre-commit expiry queue into a lookup by sector number
 	expireEpochs := make(map[uint64]abi.ChainEpoch)
-	if expiryQ, err := LoadBitfieldQueue(store, st.PreCommittedSectorsExpiry, st.QuantSpecEveryDeadline()); err != nil {
+	if expiryQ, err := LoadBitfieldQueue(store, st.PreCommittedSectorsExpiry, st.QuantSpecEveryDeadline(), PrecommitExpiryAmtBitwidth); err != nil {
 		acc.Addf("error loading pre-commit expiry queue: %v", err)
 	} else {
 		err = expiryQ.ForEach(func(epoch abi.ChainEpoch, bf bitfield.BitField) error {

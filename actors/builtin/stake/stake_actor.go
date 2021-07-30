@@ -60,8 +60,8 @@ type ConstructorParams struct {
 
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.SystemActorAddr)
+	emptyMapCid, err := adt.StoreEmptyMap(adt.AsStore(rt), builtin.DefaultHamtBitwidth)
 
-	emptyMapCid, err := adt.MakeEmptyMap(adt.AsStore(rt), builtin.DefaultHamtBitwidth).Root()
 	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to construct state")
 
 	st := ConstructState(params, emptyMapCid)

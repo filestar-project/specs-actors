@@ -36,7 +36,7 @@ func TestDeadlines(t *testing.T) {
 	allSectors := append(sectors, extraSectors...)
 
 	sectorSize := abi.SectorSize(32 << 30)
-	quantSpec := miner.NewQuantSpec(4, 1)
+	quantSpec := builtin.NewQuantSpec(4, 1)
 	partitionSize := uint64(4)
 
 	dlState := expectedDeadlineState{
@@ -918,10 +918,10 @@ func TestDeadlines(t *testing.T) {
 }
 
 func emptyDeadline(t *testing.T, store adt.Store) *miner.Deadline {
-	root, err := adt.MakeEmptyArray(store).Root()
+	dl, err := miner.ConstructDeadline(store)
 	require.NoError(t, err)
 
-	return miner.ConstructDeadline(root)
+	return dl
 }
 
 // Helper type for validating deadline state.
@@ -929,7 +929,7 @@ func emptyDeadline(t *testing.T, store adt.Store) *miner.Deadline {
 // All methods take and the state by _value_ so one can (and should) construct a
 // sane base-state.
 type expectedDeadlineState struct {
-	quant         miner.QuantSpec
+	quant         builtin.QuantSpec
 	sectorSize    abi.SectorSize
 	partitionSize uint64
 	sectors       []*miner.SectorOnChainInfo
@@ -944,7 +944,7 @@ type expectedDeadlineState struct {
 }
 
 //nolint:unused
-func (s expectedDeadlineState) withQuantSpec(quant miner.QuantSpec) expectedDeadlineState {
+func (s expectedDeadlineState) withQuantSpec(quant builtin.QuantSpec) expectedDeadlineState {
 	s.quant = quant
 	return s
 }
@@ -1013,7 +1013,7 @@ func (s expectedDeadlineState) assert(t *testing.T, store adt.Store, dl *miner.D
 // recoveries, terminations, and partition/sector assignments.
 func checkDeadlineInvariants(
 	t *testing.T, store adt.Store, dl *miner.Deadline,
-	quant miner.QuantSpec, ssize abi.SectorSize,
+	quant builtin.QuantSpec, ssize abi.SectorSize,
 	sectors []*miner.SectorOnChainInfo,
 ) (
 	allSectors bitfield.BitField,

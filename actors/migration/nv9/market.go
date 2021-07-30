@@ -22,19 +22,39 @@ func (m marketMigrator) MigrateState(ctx context.Context, store cbor.IpldStore, 
 		return nil, err
 	}
 
-	pendingProposalsCid, err := m.MapPendingProposals(ctx, store, inState.PendingProposals)
+	pendingProposalsCidOut, err := m.MapPendingProposals(ctx, store, inState.PendingProposals)
+	if err != nil {
+		return nil, err
+	}
+	proposalsCidOut, err := migrateAMTRaw(ctx, store, inState.Proposals, market3.ProposalsAmtBitwidth)
+	if err != nil {
+		return nil, err
+	}
+	statesCidOut, err := migrateAMTRaw(ctx, store, inState.States, market3.StatesAmtBitwidth)
+	if err != nil {
+		return nil, err
+	}
+	escrowTableCidOut, err := migrateHAMTRaw(ctx, store, inState.EscrowTable, adt3.BalanceTableBitwidth)
+	if err != nil {
+		return nil, err
+	}
+	lockedTableCidOut, err := migrateHAMTRaw(ctx, store, inState.LockedTable, adt3.BalanceTableBitwidth)
+	if err != nil {
+		return nil, err
+	}
+	dobeCidOut, err := migrateHAMTHAMTRaw(ctx, store, inState.DealOpsByEpoch, builtin3.DefaultHamtBitwidth, builtin3.DefaultHamtBitwidth)
 	if err != nil {
 		return nil, err
 	}
 
 	outState := market3.State{
-		Proposals:                     inState.Proposals,
-		States:                        inState.States,
-		PendingProposals:              pendingProposalsCid,
-		EscrowTable:                   inState.EscrowTable,
-		LockedTable:                   inState.LockedTable,
+		Proposals:                     proposalsCidOut,
+		States:                        statesCidOut,
+		PendingProposals:              pendingProposalsCidOut,
+		EscrowTable:                   escrowTableCidOut,
+		LockedTable:                   lockedTableCidOut,
 		NextID:                        inState.NextID,
-		DealOpsByEpoch:                inState.DealOpsByEpoch,
+		DealOpsByEpoch:                dobeCidOut,
 		LastCron:                      inState.LastCron,
 		TotalClientLockedCollateral:   inState.TotalClientLockedCollateral,
 		TotalProviderLockedCollateral: inState.TotalProviderLockedCollateral,
@@ -54,7 +74,10 @@ func (a marketMigrator) MapPendingProposals(ctx context.Context, store cbor.Ipld
 		return cid.Undef, err
 	}
 
-	newPendingProposals := adt3.MakeEmptySet(adt3.WrapStore(ctx, store), builtin3.DefaultHamtBitwidth)
+	newPendingProposals, err := adt3.MakeEmptySet(adt3.WrapStore(ctx, store), builtin3.DefaultHamtBitwidth)
+	if err != nil {
+		return cid.Undef, err
+	}
 
 	err = oldPendingProposals.ForEach(nil, func(key string) error {
 		return newPendingProposals.Put(StringKey(key))

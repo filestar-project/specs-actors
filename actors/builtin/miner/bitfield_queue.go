@@ -2,6 +2,7 @@ package miner
 
 import (
 	"fmt"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"sort"
 
 	"github.com/filecoin-project/go-bitfield"
@@ -16,11 +17,11 @@ import (
 // Keys in the queue are quantized (upwards), modulo some offset, to reduce the cardinality of keys.
 type BitfieldQueue struct {
 	*adt.Array
-	quant QuantSpec
+	quant builtin.QuantSpec
 }
 
-func LoadBitfieldQueue(store adt.Store, root cid.Cid, quant QuantSpec) (BitfieldQueue, error) {
-	arr, err := adt.AsArray(store, root)
+func LoadBitfieldQueue(store adt.Store, root cid.Cid, quant builtin.QuantSpec, bitwidth int) (BitfieldQueue, error) {
+	arr, err := adt.AsArray(store, root, bitwidth)
 	if err != nil {
 		return BitfieldQueue{}, xerrors.Errorf("failed to load epoch queue %v: %w", root, err)
 	}
@@ -80,7 +81,7 @@ func (q BitfieldQueue) Cut(toCut bitfield.BitField) error {
 	}); err != nil {
 		return xerrors.Errorf("failed to cut from bitfield queue: %w", err)
 	}
-	if err := q.BatchDelete(epochsToRemove); err != nil {
+	if err := q.BatchDelete(epochsToRemove, true); err != nil {
 		return xerrors.Errorf("failed to remove empty epochs from bitfield queue: %w", err)
 	}
 	return nil
@@ -132,7 +133,7 @@ func (q BitfieldQueue) PopUntil(until abi.ChainEpoch) (values bitfield.BitField,
 		return bitfield.New(), false, nil
 	}
 
-	if err = q.BatchDelete(poppedKeys); err != nil {
+	if err = q.BatchDelete(poppedKeys, true); err != nil {
 		return bitfield.BitField{}, false, err
 	}
 	merged, err := bitfield.MultiMerge(poppedValues...)
