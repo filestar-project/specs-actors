@@ -3,6 +3,7 @@ package builtin
 import (
 	"bytes"
 	"fmt"
+	builtin2 "github.com/filecoin-project/specs-actors/v2/actors/builtin"
 	"io"
 
 	addr "github.com/filecoin-project/go-address"
@@ -91,7 +92,7 @@ type MinerAddrs struct {
 }
 
 // Note: we could move this alias back to the mutually-importing packages that use it, now that they
-// can instead both alias the v0 version.
+// can instead both alias the v2 version.
 //type ConfirmSectorProofsParams struct {
 //	Sectors []abi.SectorNumber
 //}
@@ -121,12 +122,13 @@ func ResolveToIDAddr(rt runtime.Runtime, address addr.Address) (addr.Address, er
 	return idAddr, nil
 }
 
-// Changed since v0:
-// - Wrapping struct, added Penalty
-type ApplyRewardParams struct {
-	Reward  abi.TokenAmount
-	Penalty abi.TokenAmount
-}
+// Note: we could move this alias back to the mutually-importing packages that use it, now that they
+// can instead both alias the v2 version.
+// type ApplyRewardParams struct {
+// 	Reward  abi.TokenAmount
+// 	Penalty abi.TokenAmount
+// }
+type ApplyRewardParams = builtin2.ApplyRewardParams
 
 // Discard is a helper
 type Discard struct{}

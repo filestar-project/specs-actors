@@ -34,7 +34,7 @@ func main() {
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/cbor_gen.go", "builtin",
 		builtin.MinerAddrs{},
 		//builtin.ConfirmSectorProofsParams{},  // Aliased from v0
-		builtin.ApplyRewardParams{},
+		// builtin.ApplyRewardParams{}, // Aliased from v2
 	); err != nil {
 		panic(err)
 	}
@@ -97,7 +97,7 @@ func main() {
 		//multisig.Transaction{}, // Aliased from v0
 		//multisig.ProposalHashData{}, // Aliased from v0
 		// method params and returns
-		multisig.ConstructorParams{},
+		// multisig.ConstructorParams{}, // Aliased from v2
 		//multisig.ProposeParams{}, // Aliased from v0
 		//multisig.ProposeReturn{}, // Aliased from v0
 		//multisig.AddSignerParams{}, // Aliased from v0
@@ -117,7 +117,7 @@ func main() {
 		paych.LaneState{},
 		// method params and returns
 		//paych.ConstructorParams{}, // Aliased from v0
-		paych.UpdateChannelStateParams{},
+		// paych.UpdateChannelStateParams{}, // Aliased from v2
 		//paych.SignedVoucher{}, // Aliased from v0
 		//paych.ModVerifyParams{}, // Aliased from v0
 		// other types
@@ -138,7 +138,7 @@ func main() {
 		//power.UpdateClaimedPowerParams{}, // Aliased from v0
 		power.CurrentTotalPowerReturn{},
 		// other types
-		power.MinerConstructorParams{},
+		// power.MinerConstructorParams{}, // Aliased from v2
 	); err != nil {
 		panic(err)
 	}
@@ -152,14 +152,14 @@ func main() {
 		stake.VestingFund{},
 
 		// method params
-		stake.ConstructorParams{},
-		stake.WithdrawParams{},
-		stake.ChangeMaturePeriodParams{},
-		stake.ChangeRoundPeriodParams{},
-		stake.ChangePrincipalLockDurationParams{},
-		stake.ChangeMinDepositAmountParams{},
-		stake.ChangeMaxRewardsPerRoundParams{},
-		stake.ChangeInflationFactorParams{},
+		// stake.ConstructorParams{},
+		//stake.WithdrawParams{},
+		//stake.ChangeMaturePeriodParams{},
+		//stake.ChangeRoundPeriodParams{},
+		//stake.ChangePrincipalLockDurationParams{},
+		//stake.ChangeMinDepositAmountParams{},
+		//stake.ChangeMaxRewardsPerRoundParams{},
+		//stake.ChangeInflationFactorParams{},
 	); err != nil {
 		panic(err)
 	}
@@ -212,7 +212,7 @@ func main() {
 		//miner.DeclareFaultsParams{}, // Aliased from v0
 		//miner.DeclareFaultsRecoveredParams{}, // Aliased from v0
 		//miner.ReportConsensusFaultParams{}, // Aliased from v0
-		miner.GetControlAddressesReturn{},
+		// miner.GetControlAddressesReturn{}, // Aliased from v2
 		//miner.CheckSectorProvenParams{}, // Aliased from v0
 		//miner.WithdrawBalanceParams{}, // Aliased from v0
 		//miner.CompactPartitionsParams{}, // Aliased from v0

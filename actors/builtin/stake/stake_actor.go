@@ -6,6 +6,7 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
+	stake2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v3/actors/runtime"
 	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
@@ -47,16 +48,7 @@ func (a Actor) State() cbor.Er {
 
 var _ runtime.VMActor = Actor{}
 
-type ConstructorParams struct {
-	RootKey               addr.Address
-	MaturePeriod          abi.ChainEpoch
-	RoundPeriod           abi.ChainEpoch
-	PrincipalLockDuration abi.ChainEpoch
-	FirstRoundEpoch       abi.ChainEpoch
-	MinDepositAmount      abi.TokenAmount
-	MaxRewardPerRound     abi.TokenAmount
-	InflationFactor       big.Int
-}
+type ConstructorParams = stake2.ConstructorParams
 
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.SystemActorAddr)
@@ -114,9 +106,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	return nil
 }
 
-type WithdrawParams struct {
-	AmountRequested abi.TokenAmount
-}
+type WithdrawParams = stake2.WithdrawParams
 
 func (a Actor) WithdrawPrincipal(rt Runtime, params *WithdrawParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
@@ -177,9 +167,7 @@ func (a Actor) WithdrawReward(rt Runtime, params *WithdrawParams) *abi.EmptyValu
 	return nil
 }
 
-type ChangeMaturePeriodParams struct {
-	MaturePeriod abi.ChainEpoch
-}
+type ChangeMaturePeriodParams = stake2.ChangeMaturePeriodParams
 
 func (a Actor) ChangeMaturePeriod(rt Runtime, params *ChangeMaturePeriodParams) *abi.EmptyValue {
 	if params.MaturePeriod <= 0 {
@@ -200,9 +188,7 @@ func (a Actor) ChangeMaturePeriod(rt Runtime, params *ChangeMaturePeriodParams) 
 	return nil
 }
 
-type ChangeRoundPeriodParams struct {
-	RoundPeriod abi.ChainEpoch
-}
+type ChangeRoundPeriodParams = stake2.ChangeRoundPeriodParams
 
 func (a Actor) ChangeRoundPeriod(rt Runtime, params *ChangeRoundPeriodParams) *abi.EmptyValue {
 	if params.RoundPeriod <= 0 {
@@ -219,9 +205,7 @@ func (a Actor) ChangeRoundPeriod(rt Runtime, params *ChangeRoundPeriodParams) *a
 	return nil
 }
 
-type ChangePrincipalLockDurationParams struct {
-	PrincipalLockDuration abi.ChainEpoch
-}
+type ChangePrincipalLockDurationParams = stake2.ChangePrincipalLockDurationParams
 
 func (a Actor) ChangePrincipalLockDuration(rt Runtime, params *ChangePrincipalLockDurationParams) *abi.EmptyValue {
 	if params.PrincipalLockDuration <= 0 {
@@ -242,9 +226,7 @@ func (a Actor) ChangePrincipalLockDuration(rt Runtime, params *ChangePrincipalLo
 	return nil
 }
 
-type ChangeMinDepositAmountParams struct {
-	MinDepositAmount abi.TokenAmount
-}
+type ChangeMinDepositAmountParams = stake2.ChangeMinDepositAmountParams
 
 func (a Actor) ChangeMinDepositAmount(rt Runtime, params *ChangeMinDepositAmountParams) *abi.EmptyValue {
 	if params.MinDepositAmount.LessThanEqual(abi.NewTokenAmount(0)) {
@@ -261,9 +243,7 @@ func (a Actor) ChangeMinDepositAmount(rt Runtime, params *ChangeMinDepositAmount
 	return nil
 }
 
-type ChangeMaxRewardsPerRoundParams struct {
-	MaxRewardPerRound abi.TokenAmount
-}
+type ChangeMaxRewardsPerRoundParams = stake2.ChangeMaxRewardsPerRoundParams
 
 func (a Actor) ChangeMaxRewardsPerRound(rt Runtime, params *ChangeMaxRewardsPerRoundParams) *abi.EmptyValue {
 	if params.MaxRewardPerRound.LessThan(abi.NewTokenAmount(0)) {
@@ -280,9 +260,7 @@ func (a Actor) ChangeMaxRewardsPerRound(rt Runtime, params *ChangeMaxRewardsPerR
 	return nil
 }
 
-type ChangeInflationFactorParams struct {
-	InflationFactor big.Int
-}
+type ChangeInflationFactorParams = stake2.ChangeInflationFactorParams
 
 func (a Actor) ChangeInflationFactor(rt Runtime, params *ChangeInflationFactorParams) *abi.EmptyValue {
 	if params.InflationFactor.LessThan(big.Zero()) {
