@@ -16,6 +16,7 @@ import (
 	"github.com/filecoin-project/go-state-types/exitcode"
 	rtt "github.com/filecoin-project/go-state-types/rt"
 	miner0 "github.com/filecoin-project/specs-actors/actors/builtin/miner"
+	miner2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
 	cid "github.com/ipfs/go-cid"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"golang.org/x/xerrors"
@@ -147,13 +148,12 @@ func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValu
 // Control //
 /////////////
 
-// Changed since v0:
-// - Add ControlAddrs
-type GetControlAddressesReturn struct {
-	Owner        addr.Address
-	Worker       addr.Address
-	ControlAddrs []addr.Address
-}
+// type GetControlAddressesReturn struct {
+// 	Owner        addr.Address
+// 	Worker       addr.Address
+// 	ControlAddrs []addr.Address
+// }
+type GetControlAddressesReturn = miner2.GetControlAddressesReturn
 
 func (a Actor) ControlAddresses(rt Runtime, _ *abi.EmptyValue) *GetControlAddressesReturn {
 	rt.ValidateImmediateCallerAcceptAny()
@@ -493,6 +493,19 @@ func (a Actor) SubmitWindowedPoSt(rt Runtime, params *SubmitWindowedPoStParams) 
 // Sector Commitment //
 ///////////////////////
 
+//type SectorPreCommitInfo struct {
+//	SealProof       abi.RegisteredSealProof
+//	SectorNumber    abi.SectorNumber
+//	SealedCID       cid.Cid `checked:"true"` // CommR
+//	SealRandEpoch   abi.ChainEpoch
+//	DealIDs         []abi.DealID
+//	Expiration      abi.ChainEpoch
+//	ReplaceCapacity bool // Whether to replace a "committed capacity" no-deal sector (requires non-empty DealIDs)
+//	// The committed capacity sector to replace, and it's deadline/partition location
+//	ReplaceSectorDeadline  uint64
+//	ReplaceSectorPartition uint64
+//	ReplaceSectorNumber    abi.SectorNumber
+//}
 type PreCommitSectorParams = miner0.SectorPreCommitInfo
 
 // Proposals must be posted on chain via sma.PublishStorageDeals before PreCommitSector.
