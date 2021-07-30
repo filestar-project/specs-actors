@@ -486,9 +486,12 @@ func (a Actor) processDeferredCronEvents(rt Runtime) {
 
 			// Remove miner claim and leave miner frozen
 			for _, minerAddr := range failedMinerCrons {
-				err := st.deleteClaim(claims, minerAddr)
+				found, err := st.deleteClaim(claims, minerAddr)
 				if err != nil {
 					rt.Log(rtt.ERROR, "failed to delete claim for miner %s after failing OnDeferredCronEvent: %s", minerAddr, err)
+					continue
+				} else if !found {
+					rt.Log(rtt.ERROR, "can't find claim for miner %s after failing OnDeferredCronEvent: %s", minerAddr, err)
 					continue
 				}
 
