@@ -124,3 +124,18 @@ var MethodsStake = struct {
 	ChangeRootKey               abi.MethodNum
 	OnEpochTickEnd              abi.MethodNum
 }{MethodConstructor, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+
+
+var MethodsToken = struct {
+	Constructor                 abi.MethodNum
+	Create                      abi.MethodNum
+	MintBatch                   abi.MethodNum
+	BalanceOf                   abi.MethodNum
+	BalanceOfBatch              abi.MethodNum
+	GetURI                      abi.MethodNum
+	ChangeURI                   abi.MethodNum
+	SafeTransferFrom            abi.MethodNum
+	SafeBatchTransferFrom       abi.MethodNum
+	SetApproveForAll            abi.MethodNum
+	IsApproveForAll             abi.MethodNum
+}{MethodConstructor, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
