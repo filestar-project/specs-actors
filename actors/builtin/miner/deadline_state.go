@@ -700,7 +700,7 @@ func (dl *Deadline) DeclareFaults(
 
 	// Record partitions with some fault, for subsequently indexing in the deadline.
 	// Duplicate entries don't matter, they'll be stored in a bitfield (a set).
-	partitionsWithFault := make([]uint64, 0, len(partitionSectors.M))
+	partitionsWithFault := make([]uint64, 0, len(partitionSectors))
 	powerDelta = NewPowerPairZero()
 	if err := partitionSectors.ForEach(func(partIdx uint64, sectorNos bitfield.BitField) error {
 		var partition Partition

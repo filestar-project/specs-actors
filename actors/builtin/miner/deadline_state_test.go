@@ -103,11 +103,8 @@ func TestDeadlines(t *testing.T) {
 		addSectors(t, store, dl, proveFirst)
 
 		removedPower, err := dl.TerminateSectors(store, sectorsArr(t, store, sectors), 15, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1, 3),
-				1: bf(6),
-			},
+			0: bf(1, 3),
+			1: bf(6),
 		}, sectorSize, quantSpec)
 		require.NoError(t, err)
 
@@ -178,12 +175,9 @@ func TestDeadlines(t *testing.T) {
 		// Mark faulty.
 		powerDelta, err := dl.DeclareFaults(
 			store, sectorsArr(t, store, sectors), sectorSize, quantSpec, 9,
-			miner.PartitionSectorMap{
-				Version: 9,
-				M: map[uint64]bitfield.BitField{
-					0: bf(1),
-					1: bf(5, 6),
-				},
+			map[uint64]bitfield.BitField{
+				0: bf(1),
+				1: bf(5, 6),
 			},
 		)
 		require.NoError(t, err)
@@ -361,11 +355,8 @@ func TestDeadlines(t *testing.T) {
 
 		sectorArr := sectorsArr(t, store, sectors)
 		removedPower, err := dl.TerminateSectors(store, sectorArr, 15, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1, 3),
-				1: bf(6),
-			},
+			0: bf(1, 3),
+			1: bf(6),
 		}, sectorSize, quantSpec)
 		require.NoError(t, err)
 
@@ -390,11 +381,8 @@ func TestDeadlines(t *testing.T) {
 
 		sectorArr := sectorsArr(t, store, sectors)
 		removedPower, err := dl.TerminateSectors(store, sectorArr, 15, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1, 3),
-				1: bf(6),
-			},
+			0: bf(1, 3),
+			1: bf(6),
 		}, sectorSize, quantSpec)
 		require.NoError(t, err)
 
@@ -419,10 +407,7 @@ func TestDeadlines(t *testing.T) {
 
 		sectorArr := sectorsArr(t, store, sectors)
 		_, err := dl.TerminateSectors(store, sectorArr, 15, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(6),
-			},
+			0: bf(6),
 		}, sectorSize, quantSpec)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "can only terminate live sectors")
@@ -436,10 +421,7 @@ func TestDeadlines(t *testing.T) {
 
 		sectorArr := sectorsArr(t, store, sectors)
 		_, err := dl.TerminateSectors(store, sectorArr, 15, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				4: bf(6),
-			},
+			4: bf(6),
 		}, sectorSize, quantSpec)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to find partition 4")
@@ -453,10 +435,7 @@ func TestDeadlines(t *testing.T) {
 
 		sectorArr := sectorsArr(t, store, sectors)
 		_, err := dl.TerminateSectors(store, sectorArr, 15, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1, 2),
-			},
+			0: bf(1, 2),
 		}, sectorSize, quantSpec)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "can only terminate live sectors")
@@ -603,12 +582,9 @@ func TestDeadlines(t *testing.T) {
 		sectorArr := sectorsArr(t, store, allSectors)
 
 		// Declare sectors 1 & 6 recovered.
-		require.NoError(t, dl.DeclareFaultsRecovered(store, sectorArr, sectorSize, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1),
-				1: bf(6),
-			},
+		require.NoError(t, dl.DeclareFaultsRecovered(store, sectorArr, sectorSize, map[uint64]bitfield.BitField{
+			0: bf(1),
+			1: bf(6),
 		}))
 
 		// We're now recovering 1 & 6.
@@ -761,24 +737,15 @@ func TestDeadlines(t *testing.T) {
 		sectorArr := sectorsArr(t, store, sectors)
 
 		// Declare sectors 1 & 6 recovered.
-		require.NoError(t, dl.DeclareFaultsRecovered(store, sectorArr, sectorSize,
-			miner.PartitionSectorMap{
-				Version: 9,
-				M: map[uint64]bitfield.BitField{
-					0: bf(1),
-					1: bf(6),
-				},
-			},
-		))
+		require.NoError(t, dl.DeclareFaultsRecovered(store, sectorArr, sectorSize, map[uint64]bitfield.BitField{
+			0: bf(1),
+			1: bf(6),
+		}))
 
 		// Retract recovery for sector 1.
-		powerDelta, err := dl.DeclareFaults(store, sectorArr, sectorSize, quantSpec, 13,
-			miner.PartitionSectorMap{
-				Version: 9,
-				M: map[uint64]bitfield.BitField{
-					0: bf(1),
-				},
-			})
+		powerDelta, err := dl.DeclareFaults(store, sectorArr, sectorSize, quantSpec, 13, map[uint64]bitfield.BitField{
+			0: bf(1),
+		})
 
 		// We're just retracting a recovery, this doesn't count as a new fault.
 		require.NoError(t, err)
@@ -847,12 +814,9 @@ func TestDeadlines(t *testing.T) {
 
 		// Try to reschedule two sectors, only the 7 (non faulty) should succeed.
 		replaced, err := dl.RescheduleSectorExpirations(store, sectorArr, 1, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				1: bf(6, 7, 99), // 99 should be skipped, it doesn't exist.
-				5: bf(100),      // partition 5 doesn't exist.
-				2: bf(),         // empty bitfield should be fine.
-			},
+			1: bf(6, 7, 99), // 99 should be skipped, it doesn't exist.
+			5: bf(100),      // partition 5 doesn't exist.
+			2: bf(),         // empty bitfield should be fine.
 		}, sectorSize, quantSpec)
 		require.NoError(t, err)
 
@@ -885,12 +849,9 @@ func TestDeadlines(t *testing.T) {
 		sectorArr := sectorsArr(t, store, allSectors)
 
 		// Declare sectors 1 & 6 faulty.
-		_, err := dl.DeclareFaults(store, sectorArr, sectorSize, quantSpec, 17, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1),
-				4: bf(6),
-			},
+		_, err := dl.DeclareFaults(store, sectorArr, sectorSize, quantSpec, 17, map[uint64]bitfield.BitField{
+			0: bf(1),
+			4: bf(6),
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such partition 4")
@@ -905,12 +866,9 @@ func TestDeadlines(t *testing.T) {
 		sectorArr := sectorsArr(t, store, allSectors)
 
 		// Declare sectors 1 & 6 faulty.
-		err := dl.DeclareFaultsRecovered(store, sectorArr, sectorSize, miner.PartitionSectorMap{
-			Version: 9,
-			M: map[uint64]bitfield.BitField{
-				0: bf(1),
-				4: bf(6),
-			},
+		err := dl.DeclareFaultsRecovered(store, sectorArr, sectorSize, map[uint64]bitfield.BitField{
+			0: bf(1),
+			4: bf(6),
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no such partition 4")
@@ -920,7 +878,6 @@ func TestDeadlines(t *testing.T) {
 func emptyDeadline(t *testing.T, store adt.Store) *miner.Deadline {
 	dl, err := miner.ConstructDeadline(store)
 	require.NoError(t, err)
-
 	return dl
 }
 
