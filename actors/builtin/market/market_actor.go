@@ -616,7 +616,7 @@ func genRandNextEpoch(currEpoch abi.ChainEpoch, deal *DealProposal, rbF func(cry
 func deleteDealProposalAndState(dealId abi.DealID, states *DealMetaArray, proposals *DealArray, removeProposal bool,
 	removeState bool) error {
 	if removeProposal {
-		if err := proposals.Delete(uint64(dealId)); err != nil {
+		if err := proposals.Delete(dealId); err != nil {
 			return xerrors.Errorf("failed to delete deal proposal: %w", err)
 		}
 	}
