@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	ipldcbor "github.com/ipfs/go-ipld-cbor"
 	"testing"
 
 	"github.com/filecoin-project/go-address"
@@ -53,6 +54,55 @@ func init() {
 // Creates a new VM and initializes all singleton actors plus a root verifier account.
 func NewVMWithSingletons(ctx context.Context, t *testing.T) *VM {
 	store := ipld.NewADTStore(ctx)
+
+	lookup := map[cid.Cid]runtime.VMActor{}
+	for _, ba := range exported.BuiltinActors() {
+		lookup[ba.Code()] = ba
+	}
+
+	vm := NewVM(ctx, lookup, store)
+
+	emptyMapCID, err := adt.MakeEmptyMap(vm.store).Root()
+	require.NoError(t, err)
+	emptyArrayCID, err := adt.MakeEmptyArray(vm.store).Root()
+	require.NoError(t, err)
+	emptyMultimapCID, err := adt.MakeEmptyMultimap(vm.store).Root()
+	require.NoError(t, err)
+
+	initializeActor(ctx, t, vm, &system.State{}, builtin.SystemActorCodeID, builtin.SystemActorAddr, big.Zero())
+
+	initState := initactor.ConstructState(emptyMapCID, "scenarios")
+	initializeActor(ctx, t, vm, initState, builtin.InitActorCodeID, builtin.InitActorAddr, big.Zero())
+
+	rewardState := reward.ConstructState(abi.NewStoragePower(0))
+	initializeActor(ctx, t, vm, rewardState, builtin.RewardActorCodeID, builtin.RewardActorAddr, big.Max(big.NewInt(14e8), FIL))
+
+	cronState := cron.ConstructState(cron.BuiltInEntries())
+	initializeActor(ctx, t, vm, cronState, builtin.CronActorCodeID, builtin.CronActorAddr, big.Zero())
+
+	powerState := power.ConstructState(emptyMapCID, emptyMultimapCID)
+	initializeActor(ctx, t, vm, powerState, builtin.StoragePowerActorCodeID, builtin.StoragePowerActorAddr, big.Zero())
+
+	marketState := market.ConstructState(emptyArrayCID, emptyMapCID, emptyMultimapCID)
+	initializeActor(ctx, t, vm, marketState, builtin.StorageMarketActorCodeID, builtin.StorageMarketActorAddr, big.Zero())
+
+	// this will need to be replaced with the address of a multisig actor for the verified registry to be tested accurately
+	initializeActor(ctx, t, vm, &account.State{Address: VerifregRoot}, builtin.AccountActorCodeID, VerifregRoot, big.Zero())
+	vrState := verifreg.ConstructState(emptyMapCID, VerifregRoot)
+	initializeActor(ctx, t, vm, vrState, builtin.VerifiedRegistryActorCodeID, builtin.VerifiedRegistryActorAddr, big.Zero())
+
+	// burnt funds
+	initializeActor(ctx, t, vm, &account.State{Address: builtin.BurntFundsActorAddr}, builtin.AccountActorCodeID, builtin.BurntFundsActorAddr, big.Zero())
+
+	_, err = vm.checkpoint()
+	require.NoError(t, err)
+
+	return vm
+}
+
+// Creates a new VM and initializes all singleton actors plus a root verifier account.
+func NewVMWithSingletons2(ctx context.Context, t *testing.T, bs ipldcbor.IpldBlockstore) *VM {
+	store := adt.WrapBlockStore(ctx, bs)
 
 	lookup := map[cid.Cid]runtime.VMActor{}
 	for _, ba := range exported.BuiltinActors() {
