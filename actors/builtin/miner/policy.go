@@ -2,6 +2,7 @@ package miner
 
 import (
 	"fmt"
+	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
@@ -83,6 +84,28 @@ var SealedCIDPrefix = cid.Prefix{
 	Codec:    cid.FilCommitmentSealed,
 	MhType:   mh.POSEIDON_BLS12_381_A1_FC1,
 	MhLength: 32,
+}
+
+// List of proof types which may be used when creating a new miner actor or pre-committing a new sector.
+// This is mutable to allow configuration of testing and development networks.
+var PreCommitSealProofTypesV0 = map[abi.RegisteredSealProof]struct{}{
+	abi.RegisteredSealProof_StackedDrg32GiBV1: {},
+	abi.RegisteredSealProof_StackedDrg64GiBV1: {},
+}
+
+var PreCommitSealProofTypesV7 = map[abi.RegisteredSealProof]struct{}{
+	abi.RegisteredSealProof_StackedDrg8GiBV1:  {},
+	abi.RegisteredSealProof_StackedDrg32GiBV1: {},
+	abi.RegisteredSealProof_StackedDrg64GiBV1: {},
+}
+
+// Checks whether a seal proof type is supported for new miners and sectors.
+func CanPreCommitSealProof(s abi.RegisteredSealProof, nv network.Version) bool {
+	_, ok := PreCommitSealProofTypesV0[s]
+	if nv >= network.Version7 {
+		_, ok = PreCommitSealProofTypesV7[s]
+	}
+	return ok
 }
 
 // List of proof types which may be used when creating a new miner actor.
