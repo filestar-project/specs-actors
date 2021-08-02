@@ -111,7 +111,7 @@ func (st *State) updateToNextEpochWithReward(currRealizedPower abi.StoragePower,
 	currRewardTheta := ComputeRTheta(st.EffectiveNetworkTime, st.EffectiveBaselinePower, st.CumsumRealized, st.CumsumBaseline)
 	st.ThisEpochReward = computeReward(st.Epoch, prevRewardTheta, currRewardTheta, st.SimpleTotal, st.BaselineTotal)
 	if nv >= network.Version8 {
-		st.ThisEpochReward = big.Div(big.Mul(st.ThisEpochReward, big.NewInt(70)), big.NewInt(100))
+		st.ThisEpochReward = big.Div(big.Mul(st.ThisEpochReward, big.NewInt(7)), big.NewInt(10))
 	}
 }
 
