@@ -3,6 +3,7 @@ package stake
 import (
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/big"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	cbg "github.com/whyrusleeping/cbor-gen"
 	"golang.org/x/xerrors"
 	"reflect"
@@ -35,7 +36,12 @@ type State struct {
 	AvailableRewardMap    cid.Cid // Map, (HAMT[address]TokenAmount)
 }
 
-func ConstructState(params *ConstructorParams, emptyMapCid cid.Cid) *State {
+func ConstructState(store adt.Store, params *ConstructorParams) (*State, error) {
+	emptyMapCid, err := adt.StoreEmptyMap(store, builtin.DefaultHamtBitwidth)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to create empty map: %w", err)
+	}
+
 	return &State{
 		RootKey:               params.RootKey,
 		TotalStakePower:       big.Zero(),
@@ -53,7 +59,7 @@ func ConstructState(params *ConstructorParams, emptyMapCid cid.Cid) *State {
 		StakePowerMap:         emptyMapCid,
 		VestingRewardMap:      emptyMapCid,
 		AvailableRewardMap:    emptyMapCid,
-	}
+	}, nil
 }
 
 func (st *State) LoadLockedPrincipals(store adt.Store, lockedPrincipalMap *adt.Map, staker addr.Address) (*LockedPrincipals, bool, error) {

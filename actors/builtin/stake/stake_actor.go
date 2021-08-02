@@ -52,11 +52,8 @@ type ConstructorParams = stake2.ConstructorParams
 
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.SystemActorAddr)
-	emptyMapCid, err := adt.StoreEmptyMap(adt.AsStore(rt), builtin.DefaultHamtBitwidth)
-
+	st, err := ConstructState(adt.AsStore(rt), params)
 	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to construct state")
-
-	st := ConstructState(params, emptyMapCid)
 	rt.StateCreate(st)
 	return nil
 }
