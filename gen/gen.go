@@ -149,17 +149,17 @@ func main() {
 		stake.LockedPrincipals{},
 		stake.LockedPrincipal{},
 		stake.VestingFunds{},
-		stake.VestingFund{},
+		// stake.VestingFund{},
 
 		// method params
 		// stake.ConstructorParams{},
-		//stake.WithdrawParams{},
-		//stake.ChangeMaturePeriodParams{},
-		//stake.ChangeRoundPeriodParams{},
-		//stake.ChangePrincipalLockDurationParams{},
-		//stake.ChangeMinDepositAmountParams{},
-		//stake.ChangeMaxRewardsPerRoundParams{},
-		//stake.ChangeInflationFactorParams{},
+		// stake.WithdrawParams{},
+		// stake.ChangeMaturePeriodParams{},
+		// stake.ChangeRoundPeriodParams{},
+		// stake.ChangePrincipalLockDurationParams{},
+		// stake.ChangeMinDepositAmountParams{},
+		// stake.ChangeMaxRewardsPerRoundParams{},
+		// stake.ChangeInflationFactorParams{},
 	); err != nil {
 		panic(err)
 	}

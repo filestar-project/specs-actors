@@ -3,6 +3,7 @@ package stake
 import (
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	stake2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
 	"sort"
@@ -36,6 +37,8 @@ var RewardVestingSpec = miner.VestSpec{ // PARAM_SPEC
 	StepDuration: abi.ChainEpoch(1 * builtin.EpochsInDay),
 	Quantization: 12 * builtin.EpochsInHour,
 }
+
+type VestingFund = stake2.VestingFund
 
 // VestingFunds represents the vesting table state for the miner.
 // It is a slice of (VestingEpoch, VestingAmount).
@@ -109,12 +112,6 @@ func (v *VestingFunds) addLockedFunds(currEpoch abi.ChainEpoch, vestingSum abi.T
 	sort.Slice(v.Funds, func(first, second int) bool {
 		return v.Funds[first].Epoch < v.Funds[second].Epoch
 	})
-}
-
-// VestingFund represents miner funds that will vest at the given epoch.
-type VestingFund struct {
-	Epoch  abi.ChainEpoch
-	Amount abi.TokenAmount
 }
 
 // ConstructVestingFunds constructs empty VestingFunds state.
