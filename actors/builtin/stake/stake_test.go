@@ -1,7 +1,6 @@
 package stake_test
 
 import (
-	"context"
 	addr "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
@@ -30,7 +29,7 @@ func TestConstructor(t *testing.T) {
 	admin := tutil.NewIDAddr(t, 100)
 
 	t.Run("construct", func(t *testing.T) {
-		rt := mock.NewBuilder(context.Background(), builtin.StakeActorAddr).
+		rt := mock.NewBuilder(builtin.StakeActorAddr).
 			WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID).
 			Build(t)
 		params := stake.ConstructorParams{
@@ -66,7 +65,7 @@ func TestStake(t *testing.T) {
 	staker2 := tutil.NewIDAddr(t, 102)
 
 	t.Run("deposit-withdraw", func(t *testing.T) {
-		rt := mock.NewBuilder(context.Background(), builtin.StakeActorAddr).
+		rt := mock.NewBuilder(builtin.StakeActorAddr).
 			WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID).
 			WithEpoch(abi.ChainEpoch(0)).
 			Build(t)
@@ -203,7 +202,7 @@ func TestStake(t *testing.T) {
 	})
 
 	t.Run("vesting", func(t *testing.T) {
-		rt := mock.NewBuilder(context.Background(), builtin.StakeActorAddr).
+		rt := mock.NewBuilder(builtin.StakeActorAddr).
 			WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID).
 			WithEpoch(abi.ChainEpoch(0)).
 			Build(t)
@@ -241,7 +240,7 @@ func TestStake(t *testing.T) {
 	})
 
 	t.Run("re-deposit", func(t *testing.T) {
-		rt := mock.NewBuilder(context.Background(), builtin.StakeActorAddr).
+		rt := mock.NewBuilder(builtin.StakeActorAddr).
 			WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID).
 			WithEpoch(abi.ChainEpoch(0)).
 			Build(t)

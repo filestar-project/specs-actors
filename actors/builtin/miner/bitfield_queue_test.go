@@ -1,7 +1,6 @@
 package miner_test
 
 import (
-	"context"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	"testing"
 
@@ -237,7 +236,7 @@ func TestBitfieldQueue(t *testing.T) {
 }
 
 func emptyBitfieldQueueWithQuantizing(t *testing.T, quant builtin.QuantSpec, bitwidth int) miner.BitfieldQueue {
-	rt := mock.NewBuilder(context.Background(), address.Undef).Build(t)
+	rt := mock.NewBuilder(address.Undef).Build(t)
 	store := adt.AsStore(rt)
 	emptyArray, err := adt.StoreEmptyArray(store, bitwidth)
 	require.NoError(t, err)

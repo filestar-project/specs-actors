@@ -1,7 +1,6 @@
 package mock
 
 import (
-	"context"
 	"io"
 	"testing"
 
@@ -113,7 +112,7 @@ func (a FakeActor) TransactionStateTwice(rt runtime.Runtime, mutate *cbg.CborBoo
 func TestIllegalStateModifications(t *testing.T) {
 	actor := FakeActor{}
 	receiver := tutil.NewIDAddr(t, 100)
-	builder := NewBuilder(context.Background(), receiver).WithCaller(builtin.InitActorAddr, builtin.InitActorCodeID)
+	builder := NewBuilder(receiver).WithCaller(builtin.InitActorAddr, builtin.InitActorCodeID)
 
 	t.Run("construction", func(t *testing.T) {
 		rt := builder.Build(t)

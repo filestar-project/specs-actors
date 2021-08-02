@@ -2,7 +2,6 @@ package power_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -37,7 +36,7 @@ func TestConstruction(t *testing.T) {
 	miner := tutil.NewIDAddr(t, 103)
 	actr := tutil.NewActorAddr(t, "actor")
 
-	builder := mock.NewBuilder(context.Background(), builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
+	builder := mock.NewBuilder(builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 
 	t.Run("simple construction", func(t *testing.T) {
 		rt := builder.Build(t)
@@ -273,7 +272,7 @@ func TestPowerAndPledgeAccounting(t *testing.T) {
 	// Subtests implicitly rely on ConsensusMinerMinMiners = 3
 	require.Equal(t, 4, power.ConsensusMinerMinMiners, "power.ConsensusMinerMinMiners has changed requiring update to this test")
 
-	builder := mock.NewBuilder(context.Background(), builtin.StoragePowerActorAddr).
+	builder := mock.NewBuilder(builtin.StoragePowerActorAddr).
 		WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 
 	t.Run("power & pledge accounted below threshold", func(t *testing.T) {
@@ -504,7 +503,7 @@ func TestUpdatePledgeTotal(t *testing.T) {
 	actor := newHarness(t)
 	owner := tutil.NewIDAddr(t, 101)
 	miner := tutil.NewIDAddr(t, 111)
-	builder := mock.NewBuilder(context.Background(), builtin.StoragePowerActorAddr).
+	builder := mock.NewBuilder(builtin.StoragePowerActorAddr).
 		WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 
 	t.Run("update pledge total aborts if miner has no claim", func(t *testing.T) {
@@ -527,7 +526,7 @@ func TestCron(t *testing.T) {
 	miner2 := tutil.NewIDAddr(t, 102)
 	owner := tutil.NewIDAddr(t, 103)
 
-	builder := mock.NewBuilder(context.Background(), builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
+	builder := mock.NewBuilder(builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 
 	t.Run("calls reward actor", func(t *testing.T) {
 		rt := builder.Build(t)
@@ -768,7 +767,7 @@ func TestSubmitPoRepForBulkVerify(t *testing.T) {
 	actor := newHarness(t)
 	miner := tutil.NewIDAddr(t, 101)
 	owner := tutil.NewIDAddr(t, 101)
-	builder := mock.NewBuilder(context.Background(), builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
+	builder := mock.NewBuilder(builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 
 	t.Run("registers porep and charges gas", func(t *testing.T) {
 		rt := builder.Build(t)
@@ -1217,7 +1216,7 @@ func (h *spActorHarness) getEnrolledCronTicks(rt *mock.Runtime, epoch abi.ChainE
 }
 
 func basicPowerSetup(t *testing.T) (*mock.Runtime, *spActorHarness) {
-	builder := mock.NewBuilder(context.Background(), builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
+	builder := mock.NewBuilder(builtin.StoragePowerActorAddr).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 	rt := builder.Build(t)
 	h := newHarness(t)
 	h.constructAndVerify(rt)
