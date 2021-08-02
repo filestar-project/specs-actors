@@ -5510,7 +5510,7 @@ func makeDeadlineCronEventParams(t testing.TB, epoch abi.ChainEpoch) *power.Enro
 func makeProveCommit(sectorNo abi.SectorNumber) *miner.ProveCommitSectorParams {
 	return &miner.ProveCommitSectorParams{
 		SectorNumber: sectorNo,
-		Proof:        make([]byte, 1920),
+		Proof:        make([]byte, 192),
 	}
 }
 
