@@ -83,12 +83,12 @@ func TestConstruction(t *testing.T) {
 	t.Run("simple construction", func(t *testing.T) {
 		rt := builder.Build(t)
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			ControlAddrs:  controlAddrs,
-			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
-			PeerId:        testPid,
-			Multiaddrs:    testMultiaddrs,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			ControlAddrs:        controlAddrs,
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+			PeerId:              testPid,
+			Multiaddrs:          testMultiaddrs,
 		}
 
 		provingPeriodStart := abi.ChainEpoch(-2222) // This is just set from running the code.
@@ -114,7 +114,7 @@ func TestConstruction(t *testing.T) {
 		assert.Equal(t, params.ControlAddrs, info.ControlAddresses)
 		assert.Equal(t, params.PeerId, info.PeerId)
 		assert.Equal(t, params.Multiaddrs, info.Multiaddrs)
-		assert.Equal(t, abi.RegisteredSealProof_StackedDrg32GiBV1, info.SealProofType)
+		assert.Equal(t, abi.RegisteredPoStProof_StackedDrgWindow32GiBV1, info.WindowPoStProofType)
 		assert.Equal(t, abi.SectorSize(1<<35), info.SectorSize)
 		assert.Equal(t, uint64(2349), info.WindowPoStPartitionSectors)
 
@@ -157,10 +157,10 @@ func TestConstruction(t *testing.T) {
 		rt.AddIDAddress(control2, control2Id)
 
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			ControlAddrs:  []addr.Address{control1, control2},
-			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			ControlAddrs:        []addr.Address{control1, control2},
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
 		}
 
 		provingPeriodStart := abi.ChainEpoch(-2222) // This is just set from running the code.
@@ -189,10 +189,10 @@ func TestConstruction(t *testing.T) {
 		rt.SetAddressActorType(control1, builtin.PaymentChannelActorCodeID)
 
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			ControlAddrs:  []addr.Address{control1},
-			SealProofType: abi.RegisteredSealProof_StackedDrg2KiBV1,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			ControlAddrs:        []addr.Address{control1},
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow2KiBV1,
 		}
 
 		rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -208,11 +208,11 @@ func TestConstruction(t *testing.T) {
 		rt := builder.Build(t)
 		pid := [miner.MaxPeerIDLength + 1]byte{1, 2, 3, 4}
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
-			PeerId:        pid[:],
-			Multiaddrs:    testMultiaddrs,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+			PeerId:              pid[:],
+			Multiaddrs:          testMultiaddrs,
 		}
 
 		rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -231,11 +231,11 @@ func TestConstruction(t *testing.T) {
 		}
 
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
-			PeerId:        testPid,
-			ControlAddrs:  controlAddrs,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+			PeerId:              testPid,
+			ControlAddrs:        controlAddrs,
 		}
 
 		rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -252,11 +252,11 @@ func TestConstruction(t *testing.T) {
 			maddrs[i] = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
 		}
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
-			PeerId:        testPid,
-			Multiaddrs:    maddrs,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+			PeerId:              testPid,
+			Multiaddrs:          maddrs,
 		}
 
 		rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -273,11 +273,11 @@ func TestConstruction(t *testing.T) {
 			{1},
 		}
 		params := miner.ConstructorParams{
-			OwnerAddr:     owner,
-			WorkerAddr:    worker,
-			SealProofType: abi.RegisteredSealProof_StackedDrg32GiBV1,
-			PeerId:        testPid,
-			Multiaddrs:    maddrs,
+			OwnerAddr:           owner,
+			WorkerAddr:          worker,
+			WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+			PeerId:              testPid,
+			Multiaddrs:          maddrs,
 		}
 
 		rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -1783,7 +1783,7 @@ func TestWindowPost(t *testing.T) {
 				Index:   pIdx,
 				Skipped: bf(uint64(sector.SectorNumber)),
 			}},
-			Proofs:           makePoStProofs(actor.postProofType),
+			Proofs:           makePoStProofs(actor.windowPostProofType),
 			ChainCommitEpoch: dlinfo.Challenge,
 			ChainCommitRand:  commitRand,
 		}
@@ -2142,8 +2142,7 @@ func TestProveCommit(t *testing.T) {
 		sectorNoB := actor.nextSectorNo
 
 		// handle both prove commits in the same epoch
-		info := actor.getInfo(rt)
-		rt.SetEpoch(precommitEpoch + miner.MaxProveCommitDuration[info.SealProofType] - 1)
+		rt.SetEpoch(precommitEpoch + miner.MaxProveCommitDuration[actor.sealProofType] - 1)
 
 		actor.proveCommitSector(rt, preCommitA, makeProveCommit(sectorNoA))
 		actor.proveCommitSector(rt, preCommitB, makeProveCommit(sectorNoB))
@@ -4217,12 +4216,12 @@ type actorHarness struct {
 
 	controlAddrs []addr.Address
 
-	sealProofType abi.RegisteredSealProof
-	postProofType abi.RegisteredPoStProof
-	sectorSize    abi.SectorSize
-	partitionSize uint64
-	periodOffset  abi.ChainEpoch
-	nextSectorNo  abi.SectorNumber
+	sealProofType       abi.RegisteredSealProof
+	windowPostProofType abi.RegisteredPoStProof
+	sectorSize          abi.SectorSize
+	partitionSize       uint64
+	periodOffset        abi.ChainEpoch
+	nextSectorNo        abi.SectorNumber
 
 	networkPledge   abi.TokenAmount
 	networkRawPower abi.StoragePower
@@ -4252,11 +4251,9 @@ func newHarness(t testing.TB, provingPeriodOffset abi.ChainEpoch) *actorHarness 
 
 		controlAddrs: controlAddrs,
 
-		sealProofType: 0, // Initialized in setProofType
-		sectorSize:    0, // Initialized in setProofType
-		partitionSize: 0, // Initialized in setProofType
-		periodOffset:  provingPeriodOffset,
-		nextSectorNo:  100,
+		// Proof types and metadata initialized in setProofType
+		periodOffset: provingPeriodOffset,
+		nextSectorNo: 100,
 
 		networkPledge:   big.Mul(rwd, big.NewIntUnsigned(1000)),
 		networkRawPower: pwr,
@@ -4273,21 +4270,21 @@ func newHarness(t testing.TB, provingPeriodOffset abi.ChainEpoch) *actorHarness 
 func (h *actorHarness) setProofType(proof abi.RegisteredSealProof) {
 	var err error
 	h.sealProofType = proof
-	h.postProofType, err = proof.RegisteredWindowPoStProof()
+	h.windowPostProofType, err = proof.RegisteredWindowPoStProof()
 	require.NoError(h.t, err)
 	h.sectorSize, err = proof.SectorSize()
 	require.NoError(h.t, err)
-	h.partitionSize, err = builtin.SealProofWindowPoStPartitionSectors(proof)
+	h.partitionSize, err = builtin.PoStProofWindowPoStPartitionSectors(h.windowPostProofType)
 	require.NoError(h.t, err)
 }
 
 func (h *actorHarness) constructAndVerify(rt *mock.Runtime) {
 	params := miner.ConstructorParams{
-		OwnerAddr:     h.owner,
-		WorkerAddr:    h.worker,
-		ControlAddrs:  h.controlAddrs,
-		SealProofType: h.sealProofType,
-		PeerId:        testPid,
+		OwnerAddr:           h.owner,
+		WorkerAddr:          h.worker,
+		ControlAddrs:        h.controlAddrs,
+		WindowPoStProofType: h.windowPostProofType,
+		PeerId:              testPid,
 	}
 
 	rt.ExpectValidateCallerAddr(builtin.InitActorAddr)
@@ -4842,7 +4839,7 @@ func (h *actorHarness) submitWindowPoSt(rt *mock.Runtime, deadline *dline.Info, 
 
 	rt.ExpectValidateCallerAddr(append(h.controlAddrs, h.owner, h.worker)...)
 
-	proofs := makePoStProofs(h.postProofType)
+	proofs := makePoStProofs(h.windowPostProofType)
 	challengeRand := abi.SealRandomness([]byte{10, 11, 12, 13})
 
 	// only sectors that are not skipped and not existing non-recovered faults will be verified

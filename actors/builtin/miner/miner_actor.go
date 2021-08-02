@@ -101,12 +101,13 @@ func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValu
 	checkControlAddresses(rt, params.ControlAddrs)
 	checkPeerInfo(rt, params.PeerId, params.Multiaddrs)
 
-	if params.SealProofType != abi.RegisteredSealProof_StackedDrg8GiBV1 {
-		_, ok := SupportedProofTypes[params.SealProofType]
-		if !ok {
-			rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
-		}
-	}
+	// todo
+	//if params.WindowPoStProofType != abi.RegisteredPoStProof_StackedDrgWindow8GiBV1 {
+	//	_, ok := SupportedProofTypes[params.SealProofType]
+	//	if !ok {
+	//		rt.Abortf(exitcode.ErrIllegalArgument, "proof type %d not allowed for new miner actors", params.SealProofType)
+	//	}
+	//}
 
 	owner := resolveControlAddress(rt, params.OwnerAddr)
 	worker := resolveWorkerAddress(rt, params.WorkerAddr)
@@ -124,7 +125,7 @@ func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValu
 	deadlineIndex := currentDeadlineIndex(currEpoch, periodStart)
 	builtin.RequireState(rt, deadlineIndex < WPoStPeriodDeadlines, "computed proving deadline index %d invalid", deadlineIndex)
 
-	info, err := ConstructMinerInfo(owner, worker, controlAddrs, params.PeerId, params.Multiaddrs, params.SealProofType)
+	info, err := ConstructMinerInfo(owner, worker, controlAddrs, params.PeerId, params.Multiaddrs, params.WindowPoStProofType)
 	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to construct initial miner info")
 	infoCid := rt.StorePut(info)
 
@@ -373,12 +374,10 @@ func (a Actor) SubmitWindowedPoSt(rt Runtime, params *SubmitWindowedPoStParams) 
 		//
 		// This can be 0 if the miner isn't actually proving anything,
 		// just skipping all sectors.
-		windowPoStProofType, err := info.SealProofType.RegisteredWindowPoStProof()
-		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to determine window PoSt type")
 		if len(params.Proofs) != 1 {
 			rt.Abortf(exitcode.ErrIllegalArgument, "expected exactly one proof, got %d", len(params.Proofs))
-		} else if params.Proofs[0].PoStProof != windowPoStProofType {
-			rt.Abortf(exitcode.ErrIllegalArgument, "expected proof of type %s, got proof of type %s", windowPoStProofType, params.Proofs[0])
+		} else if params.Proofs[0].PoStProof != info.WindowPoStProofType {
+			rt.Abortf(exitcode.ErrIllegalArgument, "expected proof of type %s, got proof of type %s", info.WindowPoStProofType, params.Proofs[0])
 		}
 
 		// Validate that the miner didn't try to prove too many partitions at once.
@@ -576,8 +575,11 @@ func (a Actor) PreCommitSector(rt Runtime, params *PreCommitSectorParams) *abi.E
 			rt.Abortf(exitcode.ErrForbidden, "precommit not allowed during active consensus fault")
 		}
 
-		if params.SealProof != info.SealProofType {
-			rt.Abortf(exitcode.ErrIllegalArgument, "sector seal proof %v must match miner seal proof type %d", params.SealProof, info.SealProofType)
+		sectorWPoStProof, err := params.SealProof.RegisteredWindowPoStProof()
+		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalArgument, "failed to lookup Window PoSt proof type for sector seal proof %d", params.SealProof)
+		if sectorWPoStProof != info.WindowPoStProofType {
+			rt.Abortf(exitcode.ErrIllegalArgument, "sector Window PoSt proof type %d must match miner Window PoSt proof type %d (seal proof type %d)",
+				sectorWPoStProof, info.WindowPoStProofType, params.SealProof)
 		}
 
 		dealCountMax := SectorDealsMax(info.SectorSize)
