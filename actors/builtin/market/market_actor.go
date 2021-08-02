@@ -3,6 +3,7 @@ package market
 import (
 	"bytes"
 	"encoding/binary"
+	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 	"sort"
 
 	addr "github.com/filecoin-project/go-address"
@@ -282,13 +283,12 @@ func (a Actor) PublishStorageDeals(rt Runtime, params *PublishStorageDealsParams
 //}
 type VerifyDealsForActivationParams = market0.VerifyDealsForActivationParams
 
-// Changed since v0:
-// - Added DealSpace
-type VerifyDealsForActivationReturn struct {
-	DealWeight         abi.DealWeight
-	VerifiedDealWeight abi.DealWeight
-	DealSpace          uint64
-}
+//type VerifyDealsForActivationReturn struct {
+//	DealWeight         abi.DealWeight
+//	VerifiedDealWeight abi.DealWeight
+//	DealSpace          uint64
+//}
+type VerifyDealsForActivationReturn = market2.VerifyDealsForActivationReturn
 
 // Verify that a given set of storage deals is valid for a sector currently being PreCommitted
 // and return DealWeight of the set of storage deals given.
@@ -617,7 +617,7 @@ func deleteDealProposalAndState(dealId abi.DealID, states *DealMetaArray, propos
 	removeState bool) error {
 	if removeProposal {
 		if err := proposals.Delete(dealId); err != nil {
-			return xerrors.Errorf("failed to delete deal proposal: %w", err)
+			return xerrors.Errorf("failed to delete proposal %d : %w", dealId, err)
 		}
 	}
 

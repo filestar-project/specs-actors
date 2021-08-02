@@ -173,7 +173,7 @@ func main() {
 		//market.PublishStorageDealsReturn{}, // Aliased from v0
 		//market.ActivateDealsParams{}, // Aliased from v0
 		//market.VerifyDealsForActivationParams{}, // Aliased from v0
-		market.VerifyDealsForActivationReturn{},
+		// market.VerifyDealsForActivationReturn{}, // Aliased from v2
 		//market.ComputeDataCommitmentParams{}, // Aliased from v0
 		//market.OnMinerSectorsTerminateParams{}, // Aliased from v0
 		// other types
