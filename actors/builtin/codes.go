@@ -21,6 +21,7 @@ var (
 	RewardActorCodeID           cid.Cid
 	VerifiedRegistryActorCodeID cid.Cid
 	StakeActorCodeID            cid.Cid
+	TokenActorCodeID            cid.Cid
 	CallerTypesSignable         []cid.Cid
 )
 
@@ -48,6 +49,7 @@ func init() {
 		&AccountActorCodeID:          {name: "fil/3/account", signer: true},
 		&MultisigActorCodeID:         {name: "fil/3/multisig", signer: true},
 		&StakeActorCodeID:            {name: "fil/3/stake"},
+		&TokenActorCodeID:            {name: "fil/3/token"},
 	} {
 		c, err := builder.Sum([]byte(info.name))
 		if err != nil {

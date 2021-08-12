@@ -7,7 +7,6 @@ require (
 	github.com/filecoin-project/go-amt-ipld/v2 v2.1.0
 	github.com/filecoin-project/go-amt-ipld/v3 v3.1.0
 	github.com/filecoin-project/go-bitfield v0.2.3
-	github.com/filecoin-project/go-hamt-ipld v0.1.5
 	github.com/filecoin-project/go-hamt-ipld/v2 v2.0.0
 	github.com/filecoin-project/go-hamt-ipld/v3 v3.1.0
 	github.com/filecoin-project/go-state-types v0.0.0-20201013222834-41ea465f274f
@@ -28,4 +27,5 @@ require (
 )
 
 replace github.com/filecoin-project/go-state-types => github.com/filestar-project/go-state-types v0.1.4
+
 replace github.com/filecoin-project/specs-actors/v2 => github.com/filestar-project/specs-actors/v2 v2.1.3
