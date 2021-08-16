@@ -75,14 +75,14 @@ func TestCommitPoStFlow(t *testing.T) {
 	}.Matches(t, v.Invocations()[0])
 
 	balances := vm.GetMinerBalances(t, v, minerAddrs.IDAddress)
-	assert.True(t, balances.PreCommitDeposit.GreaterThan(big.Zero()))
+	assert.True(t, balances.PreCommitDeposit.Equals(big.Zero()))
 
 	// find information about precommited sector
 	var minerState miner.State
 	err = v.GetState(minerAddrs.IDAddress, &minerState)
 	require.NoError(t, err)
 
-	precommit, found, err := minerState.GetPrecommittedSector(v.Store(), sectorNumber)
+	_, found, err := minerState.GetPrecommittedSector(v.Store(), sectorNumber)
 	require.NoError(t, err)
 	require.True(t, found)
 
@@ -112,7 +112,6 @@ func TestCommitPoStFlow(t *testing.T) {
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower},
 
 						// The call to burnt funds indicates the overdue precommit has been penalized
-						{To: builtin.BurntFundsActorAddr, Method: builtin.MethodSend, Value: vm.ExpectAttoFil(precommit.PreCommitDeposit)},
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.EnrollCronEvent},
 					}},
 					//{To: minerAddrs.IDAddress, Method: builtin.MethodsMiner.ConfirmSectorProofsValid},
@@ -170,7 +169,6 @@ func TestCommitPoStFlow(t *testing.T) {
 				{To: minerAddrs.IDAddress, Method: builtin.MethodsMiner.ConfirmSectorProofsValid, SubInvocations: []vm.ExpectInvocation{
 					{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.ThisEpochReward},
 					{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower},
-					{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdatePledgeTotal},
 				}},
 				{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.UpdateNetworkKPI},
 			}},
@@ -180,13 +178,13 @@ func TestCommitPoStFlow(t *testing.T) {
 
 	// precommit deposit is released, ipr is added
 	balances = vm.GetMinerBalances(t, v, minerAddrs.IDAddress)
-	assert.True(t, balances.InitialPledge.GreaterThan(big.Zero()))
+	assert.True(t, balances.InitialPledge.Equals(big.Zero()))
 	assert.Equal(t, big.Zero(), balances.PreCommitDeposit)
 
 	// power is unproven so network stats are unchanged
 	networkStats := vm.GetNetworkStats(t, v)
 	assert.Equal(t, big.Zero(), networkStats.TotalBytesCommitted)
-	assert.True(t, networkStats.TotalPledgeCollateral.GreaterThan(big.Zero()))
+	assert.True(t, networkStats.TotalPledgeCollateral.Equals(big.Zero()))
 
 	//
 	// Submit PoSt
@@ -242,12 +240,15 @@ func TestCommitPoStFlow(t *testing.T) {
 
 		// miner still has initial pledge
 		balances = vm.GetMinerBalances(t, tv, minerAddrs.IDAddress)
-		assert.True(t, balances.InitialPledge.GreaterThan(big.Zero()))
+		assert.True(t, balances.InitialPledge.Equals(big.Zero()))
 
 		// committed bytes are added (miner would have gained power if minimum requirement were met)
 		networkStats := vm.GetNetworkStats(t, tv)
 		assert.Equal(t, big.NewInt(int64(sectorSize)), networkStats.TotalBytesCommitted)
-		assert.True(t, networkStats.TotalPledgeCollateral.GreaterThan(big.Zero()))
+		assert.True(t, networkStats.TotalPledgeCollateral.Equals(big.Zero()))
+
+		// Trigger cron to keep reward accounting correct
+		vm.ApplyOk(t, tv, builtin.SystemActorAddr, builtin.CronActorAddr, big.Zero(), builtin.MethodsCron.EpochTick, nil)
 
 		stateTree, err := tv.GetStateTree()
 		require.NoError(t, err)
@@ -288,12 +289,12 @@ func TestCommitPoStFlow(t *testing.T) {
 
 		// miner still has initial pledge
 		balances = vm.GetMinerBalances(t, v, minerAddrs.IDAddress)
-		assert.True(t, balances.InitialPledge.GreaterThan(big.Zero()))
+		assert.True(t, balances.InitialPledge.Equals(big.Zero()))
 
 		// network power is unchanged
 		networkStats := vm.GetNetworkStats(t, tv)
 		assert.Equal(t, big.Zero(), networkStats.TotalBytesCommitted)
-		assert.True(t, networkStats.TotalPledgeCollateral.GreaterThan(big.Zero()))
+		assert.True(t, networkStats.TotalPledgeCollateral.Equals(big.Zero()))
 	})
 
 	t.Run("missed first PoSt deadline", func(t *testing.T) {
@@ -323,6 +324,6 @@ func TestCommitPoStFlow(t *testing.T) {
 		// network power is unchanged
 		networkStats := vm.GetNetworkStats(t, tv)
 		assert.Equal(t, big.Zero(), networkStats.TotalBytesCommitted)
-		assert.True(t, networkStats.TotalPledgeCollateral.GreaterThan(big.Zero()))
+		assert.True(t, networkStats.TotalPledgeCollateral.Equals(big.Zero()))
 	})
 }

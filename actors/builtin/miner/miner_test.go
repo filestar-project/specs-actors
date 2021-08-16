@@ -41,6 +41,7 @@ var testMultiaddrs []abi.Multiaddrs
 
 // A balance for use in tests where the miner's low balance is not interesting.
 var bigBalance = big.Mul(big.NewInt(1_000_000), big.NewInt(1e18))
+
 // A reward amount for use in tests where the vesting amount wants to be large enough to cover penalties.
 var bigRewards = big.Mul(big.NewInt(1_000), big.NewInt(1e18))
 
@@ -505,25 +506,6 @@ func TestCommitments(t *testing.T) {
 		assert.Equal(t, miner.NewPowerPairZero(), entry.FaultyPower)
 	})
 
-	t.Run("insufficient funds for pre-commit", func(t *testing.T) {
-		actor := newHarness(t, periodOffset)
-		insufficientBalance := abi.NewTokenAmount(10) // 10 AttoFIL
-		rt := builderForHarness(actor).
-			WithBalance(insufficientBalance, big.Zero()).
-			Build(t)
-		precommitEpoch := periodOffset + 1
-		rt.SetEpoch(precommitEpoch)
-		actor.constructAndVerify(rt)
-		deadline := actor.deadline(rt)
-		challengeEpoch := precommitEpoch - 1
-		expiration := deadline.PeriodEnd() + defaultSectorExpiration*miner.WPoStProvingPeriod
-
-		rt.ExpectAbort(exitcode.ErrInsufficientFunds, func() {
-			actor.preCommitSector(rt, actor.makePreCommit(101, challengeEpoch, expiration, nil), preCommitConf{})
-		})
-		actor.checkState(rt)
-	})
-
 	t.Run("deal space exceeds sector space", func(t *testing.T) {
 		actor := newHarness(t, periodOffset)
 		rt := builderForHarness(actor).
@@ -776,7 +758,7 @@ func TestCommitments(t *testing.T) {
 		//require.NoError(t, err)
 		//assert.Equal(t, []uint64{uint64(sectorNo)}, newSectors)
 		// Verify pledge lock-up
-		assert.True(t, st.InitialPledge.GreaterThan(big.Zero()))
+		assert.True(t, st.InitialPledge.Equals(big.Zero()))
 		rt.Reset()
 
 		// Duplicate proof (sector no-longer pre-committed)
@@ -2077,45 +2059,6 @@ func TestProveCommit(t *testing.T) {
 	builder := builderForHarness(actor).
 		WithBalance(bigBalance, big.Zero())
 
-	t.Run("prove commit aborts if pledge requirement not met", func(t *testing.T) {
-		rt := builder.Build(t)
-		actor.constructAndVerify(rt)
-		// Set the circulating supply high and expected reward low in order to coerce
-		// pledge requirements (BR + share of money supply, but capped at 1FIL)
-		// to exceed pre-commit deposit (BR only).
-		rt.SetCirculatingSupply(big.Mul(big.NewInt(100_000_000), big.NewInt(1e18)))
-		actor.epochRewardSmooth = smoothing.TestingConstantEstimate(big.NewInt(1e15))
-
-		// prove one sector to establish collateral and locked funds
-		sectors := actor.commitAndProveSectors(rt, 1, defaultSectorExpiration, nil)
-
-		// preecommit another sector so we may prove it
-		expiration := defaultSectorExpiration*miner.WPoStProvingPeriod + periodOffset - 1
-		precommitEpoch := rt.Epoch() + 1
-		rt.SetEpoch(precommitEpoch)
-		params := actor.makePreCommit(actor.nextSectorNo, rt.Epoch()-1, expiration, nil)
-		precommit := actor.preCommitSector(rt, params, preCommitConf{})
-
-		// Confirm the unlocked PCD will not cover the new IP
-		assert.True(t, sectors[0].InitialPledge.GreaterThan(precommit.PreCommitDeposit))
-
-		// Set balance to exactly cover locked funds.
-		st := getState(rt)
-		rt.SetBalance(big.Sum(st.PreCommitDeposits, st.InitialPledge, st.LockedFunds))
-		info := actor.getInfo(rt)
-
-		rt.SetEpoch(precommitEpoch + miner.MaxProveCommitDuration[info.SealProofType] - 1)
-		rt.ExpectAbort(exitcode.ErrInsufficientFunds, func() {
-			actor.proveCommitSectorAndConfirm(rt, precommit, makeProveCommit(actor.nextSectorNo), proveCommitConf{})
-		})
-		rt.Reset()
-
-		// succeeds with enough free balance (enough to cover 2x IP)
-		rt.SetBalance(big.Sum(st.PreCommitDeposits, st.InitialPledge, st.InitialPledge, st.LockedFunds))
-		actor.proveCommitSectorAndConfirm(rt, precommit, makeProveCommit(actor.nextSectorNo), proveCommitConf{})
-		actor.checkState(rt)
-	})
-
 	t.Run("drop invalid prove commit while processing valid one", func(t *testing.T) {
 		rt := builder.Build(t)
 		actor.constructAndVerify(rt)
@@ -2970,7 +2913,7 @@ func TestWithdrawBalance(t *testing.T) {
 	builder := builderForHarness(actor).
 		WithBalance(bigBalance, big.Zero())
 
-	 onePercentBalance := big.Div(bigBalance, big.NewInt(100))
+	onePercentBalance := big.Div(bigBalance, big.NewInt(100))
 
 	t.Run("happy path withdraws funds", func(t *testing.T) {
 		rt := builder.Build(t)
@@ -3080,14 +3023,14 @@ func TestRepayDebts(t *testing.T) {
 
 		// introduce fee debt
 		st := getState(rt)
-		feeDebt := big.Mul(big.NewInt(4), big.NewInt(1e18))
+		feeDebt := big.Mul(big.NewInt(5), big.NewInt(1e18))
 		st.FeeDebt = feeDebt
 		rt.ReplaceState(st)
 
 		// send 1 FIL and repay all debt from vesting funds and balance
 		actor.repayDebt(rt,
 			big.NewInt(1e18), // send 1 FIL
-			amountLocked,     // 3 FIL comes from vesting funds
+			amountLocked,     // 4 FIL comes from vesting funds
 			big.NewInt(1e18)) // 1 FIL sent from balance
 
 		st = getState(rt)
@@ -3920,7 +3863,7 @@ func TestApplyRewards(t *testing.T) {
 			rwd := abi.NewTokenAmount(1_000_000)
 			actor.applyRewards(rt, rwd, big.Zero())
 
-			expected := abi.NewTokenAmount(750_000)
+			expected := abi.NewTokenAmount(1_000_000)
 			assert.Equal(t, expected, actor.getLockedFunds(rt))
 		}
 	})
