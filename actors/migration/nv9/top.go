@@ -83,12 +83,13 @@ func MigrateStateTree(ctx context.Context, store cbor.IpldStore, actorsRootIn ci
 		builtin2.StoragePowerActorCodeID:     cachedMigration(cache, powerMigrator{}),
 		builtin2.SystemActorCodeID:           nilMigrator{builtin3.SystemActorCodeID},
 		builtin2.VerifiedRegistryActorCodeID: cachedMigration(cache, verifregMigrator{}),
+		builtin2.StakeActorCodeID:            cachedMigration(cache, stakeMigrator{}),
 	}
 	// Set of prior version code CIDs for actors to defer during iteration, for explicit migration afterwards.
 	var deferredCodeIDs = map[cid.Cid]struct{}{
 		// None
 	}
-	if len(migrations)+len(deferredCodeIDs) != 11 {
+	if len(migrations)+len(deferredCodeIDs) != 12 {
 		panic(fmt.Sprintf("incomplete migration specification with %d code CIDs", len(migrations)))
 	}
 	startTime := time.Now()
