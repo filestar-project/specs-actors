@@ -56,6 +56,7 @@ func init() {
 
 	// permit 2KiB sectors in tests
 	miner.SupportedProofTypes[abi.RegisteredSealProof_StackedDrg2KiBV1] = struct{}{}
+	miner.PreCommitSealProofTypesV7[abi.RegisteredSealProof_StackedDrg2KiBV1] = struct{}{}
 }
 
 func TestExports(t *testing.T) {
