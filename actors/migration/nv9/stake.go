@@ -2,8 +2,6 @@ package nv9
 
 import (
 	"context"
-	adt3 "github.com/filecoin-project/specs-actors/v3/actors/util/adt"
-
 	stake2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
 	cid "github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -20,27 +18,27 @@ func (m stakeMigrator) migrateState(ctx context.Context, store cbor.IpldStore, i
 		return nil, err
 	}
 
-	lockedPrincipalMap, err := migrateHAMTRaw(ctx, store, inState.LockedPrincipalMap, adt3.BalanceTableBitwidth)
+	lockedPrincipalMap, err := migrateHAMTRaw(ctx, store, inState.LockedPrincipalMap, builtin3.DefaultHamtBitwidth)
 	if err != nil {
 		return nil, err
 	}
 
-	availablePrincipalMap, err := migrateHAMTRaw(ctx, store, inState.AvailablePrincipalMap, adt3.BalanceTableBitwidth)
+	availablePrincipalMap, err := migrateHAMTRaw(ctx, store, inState.AvailablePrincipalMap, builtin3.DefaultHamtBitwidth)
 	if err != nil {
 		return nil, err
 	}
 
-	stakePowerMap, err := migrateHAMTRaw(ctx, store, inState.StakePowerMap, adt3.BalanceTableBitwidth)
+	stakePowerMap, err := migrateHAMTRaw(ctx, store, inState.StakePowerMap, builtin3.DefaultHamtBitwidth)
 	if err != nil {
 		return nil, err
 	}
 
-	vestingRewardMap, err := migrateHAMTRaw(ctx, store, inState.VestingRewardMap, adt3.BalanceTableBitwidth)
+	vestingRewardMap, err := migrateHAMTRaw(ctx, store, inState.VestingRewardMap, builtin3.DefaultHamtBitwidth)
 	if err != nil {
 		return nil, err
 	}
 
-	availableRewardMap, err := migrateHAMTRaw(ctx, store, inState.AvailableRewardMap, adt3.BalanceTableBitwidth)
+	availableRewardMap, err := migrateHAMTRaw(ctx, store, inState.AvailableRewardMap, builtin3.DefaultHamtBitwidth)
 	if err != nil {
 		return nil, err
 	}
