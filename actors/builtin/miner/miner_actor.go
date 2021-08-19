@@ -1058,6 +1058,7 @@ func (a Actor) ExtendSectorExpiration(rt Runtime, params *ExtendSectorExpiration
 				if !ok {
 					epochsToReschedule = append(epochsToReschedule, decl.NewExpiration)
 				}
+
 			}
 
 			deadline.Partitions, err = partitions.Root()
