@@ -15,6 +15,7 @@ import (
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin/reward"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin/stake"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin/system"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/token"
 	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
 	"github.com/filecoin-project/specs-actors/v3/actors/util/smoothing"
 )
@@ -160,6 +161,31 @@ func main() {
 		// stake.ChangeMinDepositAmountParams{},
 		// stake.ChangeMaxRewardsPerRoundParams{},
 		// stake.ChangeInflationFactorParams{},
+	); err != nil {
+		panic(err)
+	}
+
+	if err := gen.WriteTupleEncodersToFile("./actors/builtin/token/cbor_gen.go", "token",
+		// actor state
+		token.State{},
+		token.AddrTokenAmountMap{},
+		token.AddrApproveMap{},
+		token.TokenURI{},
+
+		// method params
+		token.CreateTokenParams{},
+		token.MintBatchTokenParams{},
+		token.BalanceOfParams{},
+		token.BalanceOfResults{},
+		token.BalanceOfBatchParams{},
+		token.BalanceOfBatchResults{},
+		token.GetURIParams{},
+		token.ChangeURIParams{},
+		token.SafeTransferFromParams{},
+		token.SafeBatchTransferFromParams{},
+		token.SetApproveForAllParams{},
+		token.IsApproveForAllParams{},
+		token.IsApprovedForAllResults{},
 	); err != nil {
 		panic(err)
 	}

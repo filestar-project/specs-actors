@@ -1000,6 +1000,7 @@ func (a Actor) ExtendSectorExpiration(rt Runtime, params *ExtendSectorExpiration
 			builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load partitions for deadline %d", dlIdx)
 
 			quant := st.QuantSpecForDeadline(dlIdx)
+
 			// Group modified partitions by epoch to which they are extended. Duplicates are ok.
 			partitionsByNewEpoch := map[abi.ChainEpoch][]uint64{}
 			// Remember iteration order of epochs.
