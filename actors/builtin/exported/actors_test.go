@@ -1,6 +1,7 @@
 package exported
 
 import (
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/token"
 	"reflect"
 	goruntime "runtime"
 	"strings"
@@ -51,6 +52,7 @@ func TestKnownActors(t *testing.T) {
 		{system.Actor{}, builtin.SystemActorCodeID, nil},
 		{verifreg.Actor{}, builtin.VerifiedRegistryActorCodeID, builtin.MethodsVerifiedRegistry},
 		{stake.Actor{}, builtin.StakeActorCodeID, builtin.MethodsStake},
+		{token.Actor{}, builtin.TokenActorCodeID, builtin.MethodsToken},
 	}
 	require.Equal(t, len(builtins), len(actorInfos))
 	for i, info := range actorInfos {
