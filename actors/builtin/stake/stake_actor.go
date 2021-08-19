@@ -6,10 +6,10 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/exitcode"
-	"github.com/filecoin-project/go-state-types/network"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/adt"
+	stake2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/runtime"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
 	"github.com/ipfs/go-cid"
 )
 
@@ -48,24 +48,12 @@ func (a Actor) State() cbor.Er {
 
 var _ runtime.VMActor = Actor{}
 
-type ConstructorParams struct {
-	RootKey               addr.Address
-	MaturePeriod          abi.ChainEpoch
-	RoundPeriod           abi.ChainEpoch
-	PrincipalLockDuration abi.ChainEpoch
-	FirstRoundEpoch       abi.ChainEpoch
-	MinDepositAmount      abi.TokenAmount
-	MaxRewardPerRound     abi.TokenAmount
-	InflationFactor       big.Int
-}
+type ConstructorParams = stake2.ConstructorParams
 
 func (a Actor) Constructor(rt Runtime, params *ConstructorParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerIs(builtin.SystemActorAddr)
-
-	emptyMapCid, err := adt.MakeEmptyMap(adt.AsStore(rt)).Root()
+	st, err := ConstructState(adt.AsStore(rt), params)
 	builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to construct state")
-
-	st := ConstructState(params, emptyMapCid)
 	rt.StateCreate(st)
 	return nil
 }
@@ -75,10 +63,6 @@ const GasOnStakeDeposit = 888_888_888
 
 func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
-	nv := rt.NetworkVersion()
-	if nv < network.Version8 {
-		rt.Abortf(exitcode.ErrForbidden, "stake deposit not allowed")
-	}
 
 	depositAmount := rt.ValueReceived()
 	staker := rt.Caller()
@@ -90,7 +74,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	builtin.RequireParam(rt, depositAmount.GreaterThanEqual(st.MinDepositAmount), "amount to deposit must be greater than or equal to %s", st.MinDepositAmount)
 
 	rt.StateTransaction(&st, func() {
-		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap)
+		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load locked principalsMap")
 		lockedPrincipals, found, err := st.LoadLockedPrincipals(store, lockedPrincipalMap, staker)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load locked principals for %v", staker)
@@ -99,7 +83,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 		}
 		newlyUnlocked := lockedPrincipals.unlockLockedPrincipals(st.PrincipalLockDuration, currEpoch)
 
-		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available principals")
 		_, err = st.updateAvailablePrincipal(availablePrincipalMap, staker, newlyUnlocked)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update available principals")
@@ -119,9 +103,7 @@ func (a Actor) Deposit(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	return nil
 }
 
-type WithdrawParams struct {
-	AmountRequested abi.TokenAmount
-}
+type WithdrawParams = stake2.WithdrawParams
 
 func (a Actor) WithdrawPrincipal(rt Runtime, params *WithdrawParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
@@ -133,7 +115,7 @@ func (a Actor) WithdrawPrincipal(rt Runtime, params *WithdrawParams) *abi.EmptyV
 	store := adt.AsStore(rt)
 	var st State
 	rt.StateTransaction(&st, func() {
-		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available principals")
 		_, err = st.updateAvailablePrincipal(availablePrincipalMap, stakerAddr, params.AmountRequested.Neg())
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update available principals")
@@ -141,7 +123,7 @@ func (a Actor) WithdrawPrincipal(rt Runtime, params *WithdrawParams) *abi.EmptyV
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to flush available principals")
 		st.AvailablePrincipalMap = ap
 
-		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap)
+		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load stake powers")
 		err = st.updateStakePower(stakePowerMap, stakerAddr, params.AmountRequested.Neg())
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to update stake power")
@@ -166,7 +148,7 @@ func (a Actor) WithdrawReward(rt Runtime, params *WithdrawParams) *abi.EmptyValu
 	stakerAddr := rt.Caller()
 
 	rt.StateTransaction(&st, func() {
-		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap)
+		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available rewards")
 
 		err = st.updateAvailableReward(availableRewardMap, stakerAddr, params.AmountRequested.Neg())
@@ -182,9 +164,7 @@ func (a Actor) WithdrawReward(rt Runtime, params *WithdrawParams) *abi.EmptyValu
 	return nil
 }
 
-type ChangeMaturePeriodParams struct {
-	MaturePeriod abi.ChainEpoch
-}
+type ChangeMaturePeriodParams = stake2.ChangeMaturePeriodParams
 
 func (a Actor) ChangeMaturePeriod(rt Runtime, params *ChangeMaturePeriodParams) *abi.EmptyValue {
 	if params.MaturePeriod <= 0 {
@@ -205,9 +185,7 @@ func (a Actor) ChangeMaturePeriod(rt Runtime, params *ChangeMaturePeriodParams) 
 	return nil
 }
 
-type ChangeRoundPeriodParams struct {
-	RoundPeriod abi.ChainEpoch
-}
+type ChangeRoundPeriodParams = stake2.ChangeRoundPeriodParams
 
 func (a Actor) ChangeRoundPeriod(rt Runtime, params *ChangeRoundPeriodParams) *abi.EmptyValue {
 	if params.RoundPeriod <= 0 {
@@ -224,9 +202,7 @@ func (a Actor) ChangeRoundPeriod(rt Runtime, params *ChangeRoundPeriodParams) *a
 	return nil
 }
 
-type ChangePrincipalLockDurationParams struct {
-	PrincipalLockDuration abi.ChainEpoch
-}
+type ChangePrincipalLockDurationParams = stake2.ChangePrincipalLockDurationParams
 
 func (a Actor) ChangePrincipalLockDuration(rt Runtime, params *ChangePrincipalLockDurationParams) *abi.EmptyValue {
 	if params.PrincipalLockDuration <= 0 {
@@ -247,9 +223,7 @@ func (a Actor) ChangePrincipalLockDuration(rt Runtime, params *ChangePrincipalLo
 	return nil
 }
 
-type ChangeMinDepositAmountParams struct {
-	MinDepositAmount abi.TokenAmount
-}
+type ChangeMinDepositAmountParams = stake2.ChangeMinDepositAmountParams
 
 func (a Actor) ChangeMinDepositAmount(rt Runtime, params *ChangeMinDepositAmountParams) *abi.EmptyValue {
 	if params.MinDepositAmount.LessThanEqual(abi.NewTokenAmount(0)) {
@@ -266,9 +240,7 @@ func (a Actor) ChangeMinDepositAmount(rt Runtime, params *ChangeMinDepositAmount
 	return nil
 }
 
-type ChangeMaxRewardsPerRoundParams struct {
-	MaxRewardPerRound abi.TokenAmount
-}
+type ChangeMaxRewardsPerRoundParams = stake2.ChangeMaxRewardsPerRoundParams
 
 func (a Actor) ChangeMaxRewardsPerRound(rt Runtime, params *ChangeMaxRewardsPerRoundParams) *abi.EmptyValue {
 	if params.MaxRewardPerRound.LessThan(abi.NewTokenAmount(0)) {
@@ -285,9 +257,7 @@ func (a Actor) ChangeMaxRewardsPerRound(rt Runtime, params *ChangeMaxRewardsPerR
 	return nil
 }
 
-type ChangeInflationFactorParams struct {
-	InflationFactor big.Int
-}
+type ChangeInflationFactorParams = stake2.ChangeInflationFactorParams
 
 func (a Actor) ChangeInflationFactor(rt Runtime, params *ChangeInflationFactorParams) *abi.EmptyValue {
 	if params.InflationFactor.LessThan(big.Zero()) {
@@ -326,13 +296,13 @@ func (a Actor) OnEpochTickEnd(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 
 	rt.StateTransaction(&st, func() {
 		// 1. unlocked locked principals、 update available principals、update stake powers
-		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap)
+		lockedPrincipalMap, err := adt.AsMap(store, st.LockedPrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load locked principal map")
 
-		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap)
+		availablePrincipalMap, err := adt.AsMap(store, st.AvailablePrincipalMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available principals")
 
-		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap)
+		stakePowerMap, err := adt.AsMap(store, st.StakePowerMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load stake powers")
 
 		lpKeys, err := lockedPrincipalMap.CollectKeys()
@@ -380,10 +350,10 @@ func (a Actor) OnEpochTickEnd(rt Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 		st.StakePowerMap = sp
 
 		// 2. unlock vesting and update available reward
-		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap)
+		availableRewardMap, err := adt.AsMap(store, st.AvailableRewardMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load available rewards")
 
-		vestingRewardMap, err := adt.AsMap(store, st.VestingRewardMap)
+		vestingRewardMap, err := adt.AsMap(store, st.VestingRewardMap, builtin.DefaultHamtBitwidth)
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to load vesting rewards")
 		vrKeys, err := vestingRewardMap.CollectKeys()
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to collect vesting rewards keys")

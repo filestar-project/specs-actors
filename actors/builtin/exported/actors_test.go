@@ -1,26 +1,27 @@
 package exported
 
 import (
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/token"
 	"reflect"
 	goruntime "runtime"
 	"strings"
 	"testing"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/account"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/cron"
-	init_ "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/multisig"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/paych"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/system"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
-	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/cron"
+	init_ "github.com/filecoin-project/specs-actors/v3/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/market"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/multisig"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/paych"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/stake"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/system"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
+	"github.com/filecoin-project/specs-actors/v3/actors/runtime"
 	"github.com/ipfs/go-cid"
 
 	"github.com/stretchr/testify/require"
@@ -51,6 +52,7 @@ func TestKnownActors(t *testing.T) {
 		{system.Actor{}, builtin.SystemActorCodeID, nil},
 		{verifreg.Actor{}, builtin.VerifiedRegistryActorCodeID, builtin.MethodsVerifiedRegistry},
 		{stake.Actor{}, builtin.StakeActorCodeID, builtin.MethodsStake},
+		{token.Actor{}, builtin.TokenActorCodeID, builtin.MethodsToken},
 	}
 	require.Equal(t, len(builtins), len(actorInfos))
 	for i, info := range actorInfos {

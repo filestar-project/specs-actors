@@ -3,20 +3,21 @@ package main
 import (
 	gen "github.com/whyrusleeping/cbor-gen"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/account"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/cron"
-	init_ "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/multisig"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/paych"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/stake"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/system"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/smoothing"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/cron"
+	init_ "github.com/filecoin-project/specs-actors/v3/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/market"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/multisig"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/paych"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/stake"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/system"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/token"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/smoothing"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/cbor_gen.go", "builtin",
 		builtin.MinerAddrs{},
 		//builtin.ConfirmSectorProofsParams{},  // Aliased from v0
-		builtin.ApplyRewardParams{},
+		// builtin.ApplyRewardParams{}, // Aliased from v2
 	); err != nil {
 		panic(err)
 	}
@@ -97,7 +98,7 @@ func main() {
 		//multisig.Transaction{}, // Aliased from v0
 		//multisig.ProposalHashData{}, // Aliased from v0
 		// method params and returns
-		multisig.ConstructorParams{},
+		// multisig.ConstructorParams{}, // Aliased from v2
 		//multisig.ProposeParams{}, // Aliased from v0
 		//multisig.ProposeReturn{}, // Aliased from v0
 		//multisig.AddSignerParams{}, // Aliased from v0
@@ -117,7 +118,7 @@ func main() {
 		paych.LaneState{},
 		// method params and returns
 		//paych.ConstructorParams{}, // Aliased from v0
-		paych.UpdateChannelStateParams{},
+		// paych.UpdateChannelStateParams{}, // Aliased from v2
 		//paych.SignedVoucher{}, // Aliased from v0
 		//paych.ModVerifyParams{}, // Aliased from v0
 		// other types
@@ -132,7 +133,7 @@ func main() {
 		power.Claim{},
 		power.CronEvent{},
 		// method params and returns
-		//power.CreateMinerParams{}, // Aliased from v0
+		power.CreateMinerParams{},
 		//power.CreateMinerReturn{}, // Aliased from v0
 		//power.EnrollCronEventParams{}, // Aliased from v0
 		//power.UpdateClaimedPowerParams{}, // Aliased from v0
@@ -149,17 +150,42 @@ func main() {
 		stake.LockedPrincipals{},
 		stake.LockedPrincipal{},
 		stake.VestingFunds{},
-		stake.VestingFund{},
+		// stake.VestingFund{},
 
 		// method params
-		stake.ConstructorParams{},
-		stake.WithdrawParams{},
-		stake.ChangeMaturePeriodParams{},
-		stake.ChangeRoundPeriodParams{},
-		stake.ChangePrincipalLockDurationParams{},
-		stake.ChangeMinDepositAmountParams{},
-		stake.ChangeMaxRewardsPerRoundParams{},
-		stake.ChangeInflationFactorParams{},
+		// stake.ConstructorParams{},
+		// stake.WithdrawParams{},
+		// stake.ChangeMaturePeriodParams{},
+		// stake.ChangeRoundPeriodParams{},
+		// stake.ChangePrincipalLockDurationParams{},
+		// stake.ChangeMinDepositAmountParams{},
+		// stake.ChangeMaxRewardsPerRoundParams{},
+		// stake.ChangeInflationFactorParams{},
+	); err != nil {
+		panic(err)
+	}
+
+	if err := gen.WriteTupleEncodersToFile("./actors/builtin/token/cbor_gen.go", "token",
+		// actor state
+		token.State{},
+		token.AddrTokenAmountMap{},
+		token.AddrApproveMap{},
+		token.TokenURI{},
+
+		// method params
+		token.CreateTokenParams{},
+		token.MintBatchTokenParams{},
+		token.BalanceOfParams{},
+		token.BalanceOfResults{},
+		token.BalanceOfBatchParams{},
+		token.BalanceOfBatchResults{},
+		token.GetURIParams{},
+		token.ChangeURIParams{},
+		token.SafeTransferFromParams{},
+		token.SafeBatchTransferFromParams{},
+		token.SetApproveForAllParams{},
+		token.IsApproveForAllParams{},
+		token.IsApprovedForAllResults{},
 	); err != nil {
 		panic(err)
 	}
@@ -173,7 +199,7 @@ func main() {
 		//market.PublishStorageDealsReturn{}, // Aliased from v0
 		//market.ActivateDealsParams{}, // Aliased from v0
 		//market.VerifyDealsForActivationParams{}, // Aliased from v0
-		market.VerifyDealsForActivationReturn{},
+		// market.VerifyDealsForActivationReturn{}, // Aliased from v2
 		//market.ComputeDataCommitmentParams{}, // Aliased from v0
 		//market.OnMinerSectorsTerminateParams{}, // Aliased from v0
 		// other types
@@ -212,7 +238,7 @@ func main() {
 		//miner.DeclareFaultsParams{}, // Aliased from v0
 		//miner.DeclareFaultsRecoveredParams{}, // Aliased from v0
 		//miner.ReportConsensusFaultParams{}, // Aliased from v0
-		miner.GetControlAddressesReturn{},
+		// miner.GetControlAddressesReturn{}, // Aliased from v2
 		//miner.CheckSectorProvenParams{}, // Aliased from v0
 		//miner.WithdrawBalanceParams{}, // Aliased from v0
 		//miner.CompactPartitionsParams{}, // Aliased from v0

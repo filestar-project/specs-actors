@@ -10,19 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
-	"github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-	tutil "github.com/filecoin-project/specs-actors/v2/support/testing"
-	vm "github.com/filecoin-project/specs-actors/v2/support/vm"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/market"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
+	"github.com/filecoin-project/specs-actors/v3/actors/runtime/proof"
+	"github.com/filecoin-project/specs-actors/v3/support/ipld"
+	tutil "github.com/filecoin-project/specs-actors/v3/support/testing"
+	vm "github.com/filecoin-project/specs-actors/v3/support/vm"
 )
 
 func TestReplaceCommittedCapacitySectorWithDealLadenSector(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 4, big.Mul(big.NewInt(10_000), vm.FIL), 93837778)
 	worker, verifier, unverifiedClient, verifiedClient := addrs[0], addrs[1], addrs[2], addrs[3]
 
@@ -33,10 +34,10 @@ func TestReplaceCommittedCapacitySectorWithDealLadenSector(t *testing.T) {
 
 	// create miner
 	params := power.CreateMinerParams{
-		Owner:         worker,
-		Worker:        worker,
-		SealProofType: sealProof,
-		Peer:          abi.PeerID("not really a peer id"),
+		Owner:               worker,
+		Worker:              worker,
+		WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+		Peer:                abi.PeerID("not really a peer id"),
 	}
 	ret := vm.ApplyOk(t, v, addrs[0], builtin.StoragePowerActorAddr, minerBalance, builtin.MethodsPower.CreateMiner, &params)
 
@@ -187,8 +188,6 @@ func TestReplaceCommittedCapacitySectorWithDealLadenSector(t *testing.T) {
 					{To: minerAddrs.IDAddress, Method: builtin.MethodsMiner.OnDeferredCronEvent, SubInvocations: []vm.ExpectInvocation{
 						{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.ThisEpochReward},
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower},
-						// pre-commit deposit is burnt
-						{To: builtin.BurntFundsActorAddr, Method: builtin.MethodSend},
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.EnrollCronEvent},
 					}},
 					{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.UpdateNetworkKPI},
@@ -239,7 +238,6 @@ func TestReplaceCommittedCapacitySectorWithDealLadenSector(t *testing.T) {
 					{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower},
 					// deals are now activated
 					{To: builtin.StorageMarketActorAddr, Method: builtin.MethodsMarket.ActivateDeals},
-					{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdatePledgeTotal},
 				}},
 				{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.UpdateNetworkKPI},
 			}},
@@ -282,7 +280,6 @@ func TestReplaceCommittedCapacitySectorWithDealLadenSector(t *testing.T) {
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower},
 						// power is removed for old sector and pledge is burnt
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdateClaimedPower},
-						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdatePledgeTotal},
 						{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.EnrollCronEvent},
 					}},
 					{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.UpdateNetworkKPI},

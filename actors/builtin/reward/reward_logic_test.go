@@ -3,6 +3,7 @@ package reward
 import (
 	"bytes"
 	"fmt"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 	gbig "math/big"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xorcare/golden"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/util/math"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/math"
 )
 
 func q128ToF(x big.Int) float64 {
@@ -82,7 +83,7 @@ func TestBaselineRewardGrowth(t *testing.T) {
 
 	baselineInYears := func(start abi.StoragePower, x abi.ChainEpoch) abi.StoragePower {
 		baseline := start
-		for i := abi.ChainEpoch(0); i < x*epochsInYear; i++ {
+		for i := abi.ChainEpoch(0); i < x*builtin.EpochsInYear; i++ {
 			baseline = BaselinePowerFromPrev(baseline)
 		}
 		return baseline

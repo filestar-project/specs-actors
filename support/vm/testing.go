@@ -17,23 +17,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/account"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/cron"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/exported"
-	initactor "github.com/filecoin-project/specs-actors/v2/actors/builtin/init"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/reward"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/system"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
-	"github.com/filecoin-project/specs-actors/v2/actors/runtime"
-	"github.com/filecoin-project/specs-actors/v2/actors/states"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/adt"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/smoothing"
-	"github.com/filecoin-project/specs-actors/v2/support/ipld"
-	actor_testing "github.com/filecoin-project/specs-actors/v2/support/testing"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/cron"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/exported"
+	initactor "github.com/filecoin-project/specs-actors/v3/actors/builtin/init"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/market"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/reward"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/system"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
+	"github.com/filecoin-project/specs-actors/v3/actors/runtime"
+	"github.com/filecoin-project/specs-actors/v3/actors/states"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/smoothing"
+	actor_testing "github.com/filecoin-project/specs-actors/v3/support/testing"
 )
 
 var FIL = big.NewInt(1e18)
@@ -52,26 +51,19 @@ func init() {
 //
 
 // Creates a new VM and initializes all singleton actors plus a root verifier account.
-func NewVMWithSingletons(ctx context.Context, t *testing.T) *VM {
-	store := ipld.NewADTStore(ctx)
-
+func NewVMWithSingletons(ctx context.Context, t testing.TB, bs ipldcbor.IpldBlockstore) *VM {
 	lookup := map[cid.Cid]runtime.VMActor{}
 	for _, ba := range exported.BuiltinActors() {
 		lookup[ba.Code()] = ba
 	}
 
+	store := adt.WrapBlockStore(ctx, bs)
 	vm := NewVM(ctx, lookup, store)
-
-	emptyMapCID, err := adt.MakeEmptyMap(vm.store).Root()
-	require.NoError(t, err)
-	emptyArrayCID, err := adt.MakeEmptyArray(vm.store).Root()
-	require.NoError(t, err)
-	emptyMultimapCID, err := adt.MakeEmptyMultimap(vm.store).Root()
-	require.NoError(t, err)
 
 	initializeActor(ctx, t, vm, &system.State{}, builtin.SystemActorCodeID, builtin.SystemActorAddr, big.Zero())
 
-	initState := initactor.ConstructState(emptyMapCID, "scenarios")
+	initState, err := initactor.ConstructState(store, "scenarios")
+	require.NoError(t, err)
 	initializeActor(ctx, t, vm, initState, builtin.InitActorCodeID, builtin.InitActorAddr, big.Zero())
 
 	rewardState := reward.ConstructState(abi.NewStoragePower(0))
@@ -80,64 +72,18 @@ func NewVMWithSingletons(ctx context.Context, t *testing.T) *VM {
 	cronState := cron.ConstructState(cron.BuiltInEntries())
 	initializeActor(ctx, t, vm, cronState, builtin.CronActorCodeID, builtin.CronActorAddr, big.Zero())
 
-	powerState := power.ConstructState(emptyMapCID, emptyMultimapCID)
+	powerState, err := power.ConstructState(store)
+	require.NoError(t, err)
 	initializeActor(ctx, t, vm, powerState, builtin.StoragePowerActorCodeID, builtin.StoragePowerActorAddr, big.Zero())
 
-	marketState := market.ConstructState(emptyArrayCID, emptyMapCID, emptyMultimapCID)
+	marketState, err := market.ConstructState(store)
+	require.NoError(t, err)
 	initializeActor(ctx, t, vm, marketState, builtin.StorageMarketActorCodeID, builtin.StorageMarketActorAddr, big.Zero())
 
 	// this will need to be replaced with the address of a multisig actor for the verified registry to be tested accurately
 	initializeActor(ctx, t, vm, &account.State{Address: VerifregRoot}, builtin.AccountActorCodeID, VerifregRoot, big.Zero())
-	vrState := verifreg.ConstructState(emptyMapCID, VerifregRoot)
-	initializeActor(ctx, t, vm, vrState, builtin.VerifiedRegistryActorCodeID, builtin.VerifiedRegistryActorAddr, big.Zero())
-
-	// burnt funds
-	initializeActor(ctx, t, vm, &account.State{Address: builtin.BurntFundsActorAddr}, builtin.AccountActorCodeID, builtin.BurntFundsActorAddr, big.Zero())
-
-	_, err = vm.checkpoint()
+	vrState, err := verifreg.ConstructState(store, VerifregRoot)
 	require.NoError(t, err)
-
-	return vm
-}
-
-// Creates a new VM and initializes all singleton actors plus a root verifier account.
-func NewVMWithSingletons2(ctx context.Context, t *testing.T, bs ipldcbor.IpldBlockstore) *VM {
-	store := adt.WrapBlockStore(ctx, bs)
-
-	lookup := map[cid.Cid]runtime.VMActor{}
-	for _, ba := range exported.BuiltinActors() {
-		lookup[ba.Code()] = ba
-	}
-
-	vm := NewVM(ctx, lookup, store)
-
-	emptyMapCID, err := adt.MakeEmptyMap(vm.store).Root()
-	require.NoError(t, err)
-	emptyArrayCID, err := adt.MakeEmptyArray(vm.store).Root()
-	require.NoError(t, err)
-	emptyMultimapCID, err := adt.MakeEmptyMultimap(vm.store).Root()
-	require.NoError(t, err)
-
-	initializeActor(ctx, t, vm, &system.State{}, builtin.SystemActorCodeID, builtin.SystemActorAddr, big.Zero())
-
-	initState := initactor.ConstructState(emptyMapCID, "scenarios")
-	initializeActor(ctx, t, vm, initState, builtin.InitActorCodeID, builtin.InitActorAddr, big.Zero())
-
-	rewardState := reward.ConstructState(abi.NewStoragePower(0))
-	initializeActor(ctx, t, vm, rewardState, builtin.RewardActorCodeID, builtin.RewardActorAddr, big.Max(big.NewInt(14e8), FIL))
-
-	cronState := cron.ConstructState(cron.BuiltInEntries())
-	initializeActor(ctx, t, vm, cronState, builtin.CronActorCodeID, builtin.CronActorAddr, big.Zero())
-
-	powerState := power.ConstructState(emptyMapCID, emptyMultimapCID)
-	initializeActor(ctx, t, vm, powerState, builtin.StoragePowerActorCodeID, builtin.StoragePowerActorAddr, big.Zero())
-
-	marketState := market.ConstructState(emptyArrayCID, emptyMapCID, emptyMultimapCID)
-	initializeActor(ctx, t, vm, marketState, builtin.StorageMarketActorCodeID, builtin.StorageMarketActorAddr, big.Zero())
-
-	// this will need to be replaced with the address of a multisig actor for the verified registry to be tested accurately
-	initializeActor(ctx, t, vm, &account.State{Address: VerifregRoot}, builtin.AccountActorCodeID, VerifregRoot, big.Zero())
-	vrState := verifreg.ConstructState(emptyMapCID, VerifregRoot)
 	initializeActor(ctx, t, vm, vrState, builtin.VerifiedRegistryActorCodeID, builtin.VerifiedRegistryActorAddr, big.Zero())
 
 	// burnt funds
@@ -150,7 +96,7 @@ func NewVMWithSingletons2(ctx context.Context, t *testing.T, bs ipldcbor.IpldBlo
 }
 
 // Creates n account actors in the VM with the given balance
-func CreateAccounts(ctx context.Context, t *testing.T, vm *VM, n int, balance abi.TokenAmount, seed int64) []address.Address {
+func CreateAccounts(ctx context.Context, t testing.TB, vm *VM, n int, balance abi.TokenAmount, seed int64) []address.Address {
 	var initState initactor.State
 	err := vm.GetState(builtin.InitActorAddr, &initState)
 	require.NoError(t, err)
@@ -535,7 +481,7 @@ func ApplyOk(t *testing.T, v *VM, from, to address.Address, value abi.TokenAmoun
 //  internal stuff
 //
 
-func initializeActor(ctx context.Context, t *testing.T, vm *VM, state cbor.Marshaler, code cid.Cid, a address.Address, balance abi.TokenAmount) {
+func initializeActor(ctx context.Context, t testing.TB, vm *VM, state cbor.Marshaler, code cid.Cid, a address.Address, balance abi.TokenAmount) {
 	stateCID, err := vm.store.Put(ctx, state)
 	require.NoError(t, err)
 	actor := &states.Actor{

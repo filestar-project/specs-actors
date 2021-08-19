@@ -5,7 +5,7 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/filecoin-project/go-state-types/network"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/util/smoothing"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/smoothing"
 )
 
 // A quantity of space * time (in byte-epochs) representing power committed to the network for some duration.
@@ -111,7 +111,7 @@ func (st *State) updateToNextEpochWithReward(currRealizedPower abi.StoragePower,
 	currRewardTheta := ComputeRTheta(st.EffectiveNetworkTime, st.EffectiveBaselinePower, st.CumsumRealized, st.CumsumBaseline)
 	st.ThisEpochReward = computeReward(st.Epoch, prevRewardTheta, currRewardTheta, st.SimpleTotal, st.BaselineTotal)
 	if nv >= network.Version8 {
-		st.ThisEpochReward = big.Div(big.Mul(st.ThisEpochReward, big.NewInt(70)), big.NewInt(100))
+		st.ThisEpochReward = big.Div(big.Mul(st.ThisEpochReward, big.NewInt(7)), big.NewInt(10))
 	}
 }
 

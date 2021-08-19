@@ -2,13 +2,14 @@ package miner
 
 import (
 	"fmt"
+	"github.com/filecoin-project/go-state-types/network"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/ipfs/go-cid"
 	mh "github.com/multiformats/go-multihash"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
 )
 
 // The period over which a miner's active sectors are expected to be proven via WindowPoSt.
@@ -64,11 +65,6 @@ const (
 	MaxMultiaddrData = 1024 // PARAM_SPEC
 )
 
-// Maximum size of a single prove-commit proof, in bytes.
-// The 1024 maximum at network version 4 was an error (the expected size is 1920).
-const MaxProveCommitSizeV4 = 1024
-const MaxProveCommitSizeV5 = 10240
-
 // Maximum number of control addresses a miner may register.
 const MaxControlAddresses = 10
 
@@ -88,6 +84,28 @@ var SealedCIDPrefix = cid.Prefix{
 	Codec:    cid.FilCommitmentSealed,
 	MhType:   mh.POSEIDON_BLS12_381_A1_FC1,
 	MhLength: 32,
+}
+
+// List of proof types which may be used when creating a new miner actor or pre-committing a new sector.
+// This is mutable to allow configuration of testing and development networks.
+var PreCommitSealProofTypesV0 = map[abi.RegisteredSealProof]struct{}{
+	abi.RegisteredSealProof_StackedDrg32GiBV1: {},
+	abi.RegisteredSealProof_StackedDrg64GiBV1: {},
+}
+
+var PreCommitSealProofTypesV7 = map[abi.RegisteredSealProof]struct{}{
+	abi.RegisteredSealProof_StackedDrg8GiBV1:  {},
+	abi.RegisteredSealProof_StackedDrg32GiBV1: {},
+	abi.RegisteredSealProof_StackedDrg64GiBV1: {},
+}
+
+// Checks whether a seal proof type is supported for new miners and sectors.
+func CanPreCommitSealProof(s abi.RegisteredSealProof, nv network.Version) bool {
+	_, ok := PreCommitSealProofTypesV0[s]
+	if nv >= network.Version7 {
+		_, ok = PreCommitSealProofTypesV7[s]
+	}
+	return ok
 }
 
 // List of proof types which may be used when creating a new miner actor.

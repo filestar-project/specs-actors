@@ -7,9 +7,9 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/smoothing"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/smoothing"
 )
 
 // Test termination fee
@@ -99,7 +99,7 @@ func TestPledgePenaltyForTermination(t *testing.T) {
 		dayReward := big.Div(initialPledge, bigInitialPledgeFactor)
 		twentyDayReward := big.Mul(dayReward, bigInitialPledgeFactor)
 		sectorAge := abi.ChainEpoch(20 * builtin.EpochsInDay)
-		replacementAge := abi.ChainEpoch(miner.TerminationLifetimeCap+ 1) * builtin.EpochsInDay
+		replacementAge := abi.ChainEpoch(miner.TerminationLifetimeCap+1) * builtin.EpochsInDay
 
 		// use low power, so we don't test SP=SP
 		power := big.NewInt(1)

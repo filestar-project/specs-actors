@@ -1,7 +1,7 @@
 package account_test
 
 import (
-	"context"
+	"strings"
 	"testing"
 
 	"github.com/filecoin-project/go-address"
@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/account"
-	"github.com/filecoin-project/specs-actors/v2/support/mock"
-	tutil "github.com/filecoin-project/specs-actors/v2/support/testing"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/account"
+	"github.com/filecoin-project/specs-actors/v3/support/mock"
+	tutil "github.com/filecoin-project/specs-actors/v3/support/testing"
 )
 
 type constructorTestCase struct {
@@ -29,7 +29,7 @@ func TestAccountactor(t *testing.T) {
 	actor := account.Actor{}
 
 	receiver := tutil.NewIDAddr(t, 100)
-	builder := mock.NewBuilder(context.Background(), receiver).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
+	builder := mock.NewBuilder(receiver).WithCaller(builtin.SystemActorAddr, builtin.SystemActorCodeID)
 
 	testCases := []constructorTestCase{
 		{
@@ -85,7 +85,6 @@ func checkState(t *testing.T, rt *mock.Runtime) {
 	require.NoError(t, err)
 	var st account.State
 	rt.GetState(&st)
-	_, msgs, err := account.CheckStateInvariants(&st, testAddress)
-	assert.NoError(t, err)
-	assert.True(t, msgs.IsEmpty())
+	_, msgs := account.CheckStateInvariants(&st, testAddress)
+	assert.True(t, msgs.IsEmpty(), strings.Join(msgs.Messages(), "\n"))
 }

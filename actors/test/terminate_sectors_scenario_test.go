@@ -10,20 +10,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/power"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/verifreg"
-	"github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
-	tutil "github.com/filecoin-project/specs-actors/v2/support/testing"
-	vm "github.com/filecoin-project/specs-actors/v2/support/vm"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/market"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/power"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/verifreg"
+	"github.com/filecoin-project/specs-actors/v3/actors/runtime/proof"
+	"github.com/filecoin-project/specs-actors/v3/support/ipld"
+	tutil "github.com/filecoin-project/specs-actors/v3/support/testing"
+	vm "github.com/filecoin-project/specs-actors/v3/support/vm"
 )
 
 // This scenario hits all Market Actor methods.
 func TestTerminateSectors(t *testing.T) {
 	ctx := context.Background()
-	v := vm.NewVMWithSingletons(ctx, t)
+	v := vm.NewVMWithSingletons(ctx, t, ipld.NewBlockStoreInMemory())
 	addrs := vm.CreateAccounts(ctx, t, v, 4, big.Mul(big.NewInt(10_000), vm.FIL), 93837778)
 	owner, verifier, unverifiedClient, verifiedClient := addrs[0], addrs[1], addrs[2], addrs[3]
 	worker := owner
@@ -35,10 +36,10 @@ func TestTerminateSectors(t *testing.T) {
 
 	// create miner
 	ret := vm.ApplyOk(t, v, addrs[0], builtin.StoragePowerActorAddr, minerBalance, builtin.MethodsPower.CreateMiner, &power.CreateMinerParams{
-		Owner:         owner,
-		Worker:        worker,
-		SealProofType: sealProof,
-		Peer:          abi.PeerID("not really a peer id"),
+		Owner:               owner,
+		Worker:              worker,
+		WindowPoStProofType: abi.RegisteredPoStProof_StackedDrgWindow32GiBV1,
+		Peer:                abi.PeerID("not really a peer id"),
 	})
 
 	minerAddrs, ok := ret.(*power.CreateMinerReturn)
@@ -165,7 +166,6 @@ func TestTerminateSectors(t *testing.T) {
 			{To: builtin.RewardActorAddr, Method: builtin.MethodsReward.ThisEpochReward, SubInvocations: noSubinvocations},
 			{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.CurrentTotalPower, SubInvocations: noSubinvocations},
 			{To: builtin.BurntFundsActorAddr, Method: builtin.MethodSend, SubInvocations: noSubinvocations},
-			{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdatePledgeTotal, SubInvocations: noSubinvocations},
 			{To: builtin.StorageMarketActorAddr, Method: builtin.MethodsMarket.OnMinerSectorsTerminate, SubInvocations: noSubinvocations},
 			{To: builtin.StoragePowerActorAddr, Method: builtin.MethodsPower.UpdateClaimedPower, SubInvocations: noSubinvocations},
 		},
@@ -196,8 +196,8 @@ func TestTerminateSectors(t *testing.T) {
 
 	}
 
-	// advance and run cron to complete processing of termination
-	v, err = v.WithEpoch(v.GetEpoch() + 1000)
+	// advance a proving period and run cron to complete processing of termination
+	v, err = v.WithEpoch(v.GetEpoch() + 2880)
 	require.NoError(t, err)
 	vm.ApplyOk(t, v, builtin.SystemActorAddr, builtin.CronActorAddr, big.Zero(), builtin.MethodsCron.EpochTick, nil)
 

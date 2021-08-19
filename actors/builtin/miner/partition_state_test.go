@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin"
-	"github.com/filecoin-project/specs-actors/v2/actors/builtin/miner"
-	"github.com/filecoin-project/specs-actors/v2/actors/util/adt"
-	"github.com/filecoin-project/specs-actors/v2/support/ipld"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin"
+	"github.com/filecoin-project/specs-actors/v3/actors/builtin/miner"
+	"github.com/filecoin-project/specs-actors/v3/actors/util/adt"
+	"github.com/filecoin-project/specs-actors/v3/support/ipld"
 )
 
 func TestPartitions(t *testing.T) {
@@ -31,7 +31,7 @@ func TestPartitions(t *testing.T) {
 	}
 	sectorSize := abi.SectorSize(32 << 30)
 
-	quantSpec := miner.NewQuantSpec(4, 1)
+	quantSpec := builtin.NewQuantSpec(4, 1)
 
 	setupUnproven := func(t *testing.T) (adt.Store, *miner.Partition) {
 		store := ipld.NewADTStore(context.Background())
@@ -39,7 +39,8 @@ func TestPartitions(t *testing.T) {
 
 		power, err := partition.AddSectors(store, false, sectors, sectorSize, quantSpec)
 		require.NoError(t, err)
-		require.True(t, power.IsZero())
+		expectedPower := miner.PowerForSectors(sectorSize, sectors)
+		assert.True(t, expectedPower.Equals(power))
 
 		return store, partition
 	}
@@ -288,13 +289,14 @@ func TestPartitions(t *testing.T) {
 		// Add an unproven sector. We _should_ reschedule the expiration.
 		// This is fine as we don't allow actually _expiring_ sectors
 		// while there are unproven sectors.
-		powerDelta, err := partition.AddSectors(
+		power, err := partition.AddSectors(
 			store, false,
 			[]*miner.SectorOnChainInfo{unprovenSector},
 			sectorSize, quantSpec,
 		)
 		require.NoError(t, err)
-		require.True(t, powerDelta.IsZero()) // no power for unproven sectors.
+		expectedPower := miner.PowerForSectors(sectorSize, []*miner.SectorOnChainInfo{unprovenSector})
+		assert.True(t, expectedPower.Equals(power))
 
 		// reschedule
 		replaced, err := partition.RescheduleExpirations(store, sectorArr, 18, bf(2, 4, 6, 7), sectorSize, quantSpec)
@@ -407,13 +409,14 @@ func TestPartitions(t *testing.T) {
 		sectorArr := sectorsArr(t, store, allSectors)
 
 		// Add an unproven sector.
-		powerDelta, err := partition.AddSectors(
+		power, err := partition.AddSectors(
 			store, false,
 			[]*miner.SectorOnChainInfo{unprovenSector},
 			sectorSize, quantSpec,
 		)
 		require.NoError(t, err)
-		require.True(t, powerDelta.IsZero()) // no power for unproven sectors.
+		expectedPower := miner.PowerForSectors(sectorSize, []*miner.SectorOnChainInfo{unprovenSector})
+		assert.True(t, expectedPower.Equals(power))
 
 		// fault sector 3, 4, 5 and 6
 		faultSet := bf(3, 4, 5, 6)
@@ -446,7 +449,7 @@ func TestPartitions(t *testing.T) {
 		})
 
 		// sectors should be added to early termination bitfield queue
-		queue, err := miner.LoadBitfieldQueue(store, partition.EarlyTerminated, miner.NoQuantization)
+		queue, err := miner.LoadBitfieldQueue(store, partition.EarlyTerminated, builtin.NoQuantization, miner.PartitionEarlyTerminationArrayAmtBitwidth)
 		require.NoError(t, err)
 
 		ExpectBQ().
@@ -539,7 +542,7 @@ func TestPartitions(t *testing.T) {
 		})
 
 		// sectors should be added to early termination bitfield queue
-		queue, err := miner.LoadBitfieldQueue(store, partition.EarlyTerminated, miner.NoQuantization)
+		queue, err := miner.LoadBitfieldQueue(store, partition.EarlyTerminated, builtin.NoQuantization, miner.PartitionEarlyTerminationArrayAmtBitwidth)
 		require.NoError(t, err)
 
 		// only early termination appears in bitfield queue
@@ -584,13 +587,14 @@ func TestPartitions(t *testing.T) {
 		sectorArr := sectorsArr(t, store, allSectors)
 
 		// Add an unproven sector.
-		powerDelta, err := partition.AddSectors(
+		power, err := partition.AddSectors(
 			store, false,
 			[]*miner.SectorOnChainInfo{unprovenSector},
 			sectorSize, quantSpec,
 		)
 		require.NoError(t, err)
-		require.True(t, powerDelta.IsZero()) // no power for unproven sectors.
+		expectedPower := miner.PowerForSectors(sectorSize, []*miner.SectorOnChainInfo{unprovenSector})
+		assert.True(t, expectedPower.Equals(power))
 
 		// make 4, 5 and 6 faulty
 		faultSet := bf(4, 5, 6)
@@ -659,7 +663,7 @@ func TestPartitions(t *testing.T) {
 		assert.True(t, hasMore)
 
 		// expect terminations to still contain 3 and 5
-		queue, err := miner.LoadBitfieldQueue(store, partition.EarlyTerminated, miner.NoQuantization)
+		queue, err := miner.LoadBitfieldQueue(store, partition.EarlyTerminated, builtin.NoQuantization, miner.PartitionEarlyTerminationArrayAmtBitwidth)
 		require.NoError(t, err)
 
 		// only early termination appears in bitfield queue
@@ -678,7 +682,7 @@ func TestPartitions(t *testing.T) {
 		assert.False(t, hasMore)
 
 		// expect early terminations to be empty
-		queue, err = miner.LoadBitfieldQueue(store, partition.EarlyTerminated, miner.NoQuantization)
+		queue, err = miner.LoadBitfieldQueue(store, partition.EarlyTerminated, builtin.NoQuantization, miner.PartitionEarlyTerminationArrayAmtBitwidth)
 		require.NoError(t, err)
 		ExpectBQ().Equals(t, queue)
 	})
@@ -702,14 +706,14 @@ func TestPartitions(t *testing.T) {
 		}
 		sectorNos := bf(ids...)
 
-		power, err := partition.AddSectors(store, false, manySectors, sectorSize, miner.NoQuantization)
+		power, err := partition.AddSectors(store, false, manySectors, sectorSize, builtin.NoQuantization)
 		require.NoError(t, err)
-
-		assert.True(t, power.IsZero()) // not activated
+		expectedPower := miner.PowerForSectors(sectorSize, manySectors)
+		assert.True(t, expectedPower.Equals(power))
 
 		assertPartitionState(
 			t, store, partition,
-			miner.NoQuantization, sectorSize, manySectors,
+			builtin.NoQuantization, sectorSize, manySectors,
 			sectorNos, bf(), bf(), bf(), sectorNos,
 		)
 
@@ -724,7 +728,7 @@ func TestPartitions(t *testing.T) {
 
 		assertPartitionState(
 			t, store, &newPartition,
-			miner.NoQuantization, sectorSize, manySectors,
+			builtin.NoQuantization, sectorSize, manySectors,
 			sectorNos, bf(), bf(), bf(), sectorNos,
 		)
 
@@ -742,7 +746,7 @@ func TestRecordSkippedFaults(t *testing.T) {
 	}
 	sectorSize := abi.SectorSize(32 << 30)
 
-	quantSpec := miner.NewQuantSpec(4, 1)
+	quantSpec := builtin.NewQuantSpec(4, 1)
 	exp := abi.ChainEpoch(100)
 
 	setup := func(t *testing.T) (adt.Store, *miner.Partition) {
@@ -751,7 +755,6 @@ func TestRecordSkippedFaults(t *testing.T) {
 
 		power, err := partition.AddSectors(store, true, sectors, sectorSize, quantSpec)
 		require.NoError(t, err)
-
 		expectedPower := miner.PowerForSectors(sectorSize, sectors)
 		assert.True(t, expectedPower.Equals(power))
 
@@ -859,8 +862,8 @@ type expectExpirationGroup struct {
 	sectors    bitfield.BitField
 }
 
-func assertPartitionExpirationQueue(t *testing.T, store adt.Store, partition *miner.Partition, quant miner.QuantSpec, groups []expectExpirationGroup) {
-	queue, err := miner.LoadExpirationQueue(store, partition.ExpirationsEpochs, quant)
+func assertPartitionExpirationQueue(t *testing.T, store adt.Store, partition *miner.Partition, quant builtin.QuantSpec, groups []expectExpirationGroup) {
+	queue, err := miner.LoadExpirationQueue(store, partition.ExpirationsEpochs, quant, miner.PartitionExpirationAmtBitwidth)
 	require.NoError(t, err)
 
 	for _, group := range groups {
@@ -878,7 +881,7 @@ func assertPartitionExpirationQueue(t *testing.T, store adt.Store, partition *mi
 func assertPartitionState(t *testing.T,
 	store adt.Store,
 	partition *miner.Partition,
-	quant miner.QuantSpec,
+	quant builtin.QuantSpec,
 	sectorSize abi.SectorSize,
 	sectors []*miner.SectorOnChainInfo,
 	allSectorIds bitfield.BitField,
@@ -920,10 +923,9 @@ func selectSectors(t *testing.T, sectors []*miner.SectorOnChainInfo, field bitfi
 }
 
 func emptyPartition(t *testing.T, store adt.Store) *miner.Partition {
-	root, err := adt.MakeEmptyArray(store).Root()
+	p, err := miner.ConstructPartition(store)
 	require.NoError(t, err)
-
-	return miner.ConstructPartition(root)
+	return p
 }
 
 func rescheduleSectors(t *testing.T, target abi.ChainEpoch, sectors []*miner.SectorOnChainInfo, filter bitfield.BitField) []*miner.SectorOnChainInfo {
