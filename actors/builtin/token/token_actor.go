@@ -77,7 +77,6 @@ func (a Actor) Create(rt Runtime, params *CreateTokenParams) *abi.EmptyValue {
 	store := adt.AsStore(rt)
 
 	var st State
-	rt.StateReadonly(&st)
 
 	rt.StateTransaction(&st, func() {
 		creatorsArray, err := adt.AsArray(store, st.Creators, LaneStatesAmtBitwidth)
@@ -85,10 +84,9 @@ func (a Actor) Create(rt Runtime, params *CreateTokenParams) *abi.EmptyValue {
 
 		st.Nonce = big.Add(st.Nonce, big.NewInt(1))
 		err = st.setCreatorAddress(creatorsArray, tokenOperator, st.Nonce)
-		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to create a new token type")
+		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to set token creator")
 		cta, err := creatorsArray.Root()
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to flush creatorsArray")
-		rt.ChargeGas("OnTokenCreate", GasOnTokenCreate, 0)
 		st.Creators = cta
 
 		urisArray, err := adt.AsArray(store, st.URIs, LaneStatesAmtBitwidth)
@@ -130,6 +128,8 @@ func (a Actor) Create(rt Runtime, params *CreateTokenParams) *abi.EmptyValue {
 		iam, err := isAllApproveMap.Root()
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to flush isAllApproveMap")
 		st.Approves = iam
+
+		rt.ChargeGas("OnTokenCreate", GasOnTokenCreate, 0)
 	})
 
 	return nil
@@ -218,6 +218,7 @@ func (a Actor) MintBatch(rt Runtime, params *MintBatchTokenParams) *abi.EmptyVal
 		builtin.RequireNoErr(rt, err, exitcode.ErrIllegalState, "failed to flush isAllApproveMap")
 		st.Approves = iam
 
+		rt.ChargeGas("OnTokenCreate", GasOnTokenCreate, 0)
 	})
 
 	return nil
