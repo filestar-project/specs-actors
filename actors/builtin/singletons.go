@@ -15,7 +15,7 @@ var (
 	StorageMarketActorAddr    = mustMakeAddress(5)
 	VerifiedRegistryActorAddr = mustMakeAddress(6)
 	StakeActorAddr            = mustMakeAddress(88)
-	TokenActorAddr            = mustMakeAddress(90)
+	TokenActorAddr            = mustMakeAddress(95)
 	// Distinguished AccountActor that is the destination of all burnt funds.
 	BurntFundsActorAddr = mustMakeAddress(99)
 )
