@@ -41,6 +41,7 @@ func TestKnownActors(t *testing.T) {
 		methods interface{}
 	}{
 		{account.Actor{}, builtin.AccountActorCodeID, builtin.MethodsAccount},
+		{contract.Actor{}, builtin.ContractActorCodeID, builtin.MethodsContract},
 		{cron.Actor{}, builtin.CronActorCodeID, builtin.MethodsCron},
 		{init_.Actor{}, builtin.InitActorCodeID, builtin.MethodsInit},
 		{market.Actor{}, builtin.StorageMarketActorCodeID, builtin.MethodsMarket},
