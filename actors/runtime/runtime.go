@@ -2,18 +2,102 @@ package runtime
 
 import (
 	"context"
+	"time"
 
+	"github.com/filecoin-project/go-address"
 	addr "github.com/filecoin-project/go-address"
+	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
+	"github.com/filecoin-project/go-fil-markets/storagemarket"
+	"github.com/filecoin-project/go-multistore"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/cbor"
 	"github.com/filecoin-project/go-state-types/crypto"
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/go-state-types/rt"
+	peer "github.com/libp2p/go-libp2p-core/peer"
+
+	"github.com/filecoin-project/go-state-types/big"
 	cid "github.com/ipfs/go-cid"
 
 	"github.com/filecoin-project/specs-actors/v3/actors/runtime/proof"
 )
+
+type Import struct {
+	Key multistore.StoreID
+	Err string
+
+	Root     *cid.Cid
+	Source   string
+	FilePath string
+}
+type DealInfo struct {
+	ProposalCid cid.Cid
+	State       storagemarket.StorageDealStatus
+	Message     string // more information about deal state, particularly errors
+	Provider    address.Address
+
+	DataRef  *storagemarket.DataRef
+	PieceCID cid.Cid
+	Size     uint64
+
+	PricePerEpoch big.Int
+	Duration      uint64
+
+	DealID abi.DealID
+
+	CreationTime time.Time
+	Verified     bool
+}
+
+type DealState struct {
+	SectorStartEpoch abi.ChainEpoch // -1 if not yet included in proven sector
+	LastUpdatedEpoch abi.ChainEpoch // -1 if deal state never updated
+	SlashEpoch       abi.ChainEpoch // -1 if deal never slashed
+}
+
+type Deal struct {
+	LocalDeal        DealInfo
+	OnChainDealState DealState
+}
+
+type QueryOffer struct {
+	Err string
+
+	Root  cid.Cid
+	Piece *cid.Cid
+
+	Size                    uint64
+	MinPrice                big.Int
+	UnsealPrice             big.Int
+	PaymentInterval         uint64
+	PaymentIntervalIncrease uint64
+	Miner                   address.Address
+	MinerPeer               retrievalmarket.RetrievalPeer
+}
+
+type RetrieveParams struct {
+	DataCid    cid.Cid
+	OutputPath string
+	Payer      address.Address
+	MinerAddr  address.Address
+	PieceCid   *cid.Cid
+	MaxPrice   big.Int
+	Car        bool
+}
+
+type InitDealParams struct {
+	DataCid           cid.Cid
+	Miner             address.Address
+	Price             big.Int
+	Duration          int64
+	StartEpoch        int64
+	VerifiedDealParam bool
+	FastRetrieval     bool
+	ProvCol           big.Int
+	From              address.Address
+	Ref               *storagemarket.DataRef
+}
 
 // Interfaces for the runtime.
 // These interfaces are not aliased onto prior versions even if they match exactly.
@@ -36,6 +120,9 @@ type Runtime interface {
 
 	// Provides the system call interface.
 	Syscalls
+
+	// provides storage functional
+	StorageHandle
 
 	// The network protocol version number at the current epoch.
 	NetworkVersion() network.Version
@@ -89,6 +176,11 @@ type Runtime interface {
 	// will be rolled back.
 	Send(toAddr addr.Address, methodNum abi.MethodNum, params cbor.Marshaler, value abi.TokenAmount, out cbor.Er) exitcode.ExitCode
 
+	// Sends a message to another actor, returning the exit code and return value envelope.
+	// If the invoked method does not return successfully, its state changes (and that of any messages it sent in turn)
+	// will be rolled back.
+	SendMarshalled(toAddr addr.Address, methodNum abi.MethodNum, value abi.TokenAmount, params []byte) ([]byte, exitcode.ExitCode)
+
 	// Halts execution upon an error from which the receiver cannot recover. The caller will receive the exitcode and
 	// an empty return value. State changes made within this call will be rolled back.
 	// This method does not return.
@@ -138,8 +230,43 @@ type Runtime interface {
 	// in total gas charged if amount of gas charged was to be changed.
 	ChargeGas(name string, gas int64, virtual int64)
 
+	// Current gas limit
+	GasLimit() uint64
+
 	// Note events that may make debugging easier
 	Log(level rt.LogLevel, msg string, args ...interface{})
+
+	// Returns address, that starts invoke the chain
+	Origin() addr.Address
+
+	// Returns origin address-reciever of message
+	RecieverAddress() addr.Address
+
+	// GetActorBalance get balance by address
+	// In case if actor not exist will return zero
+	GetActorBalance(addr.Address) big.Int
+
+	// TransferTokens transfer tokens from address, to address and value
+	// Used only with secp256k1 and actor addresses
+	// Will call vm send
+	TransferTokens(addr.Address, addr.Address, big.Int)
+
+	// Delete contract actor by address
+	// Can be called only by ContractActor
+	DeleteContractActor(addr.Address)
+
+	// Returns new unique contract actor address
+	// that depends on caller address,
+	// contract code and caller nonce
+	// argument is contract code
+	// returns address and salt used for it generation
+	NewContractActorAddress([]byte) (addr.Address, []byte)
+
+	//Get actor nonce from stateTree
+	GetNonce(addr.Address) uint64
+
+	//Set actor nonce to new value
+	SetNonce(addr.Address, uint64)
 }
 
 // Store defines the storage module exposed to actors.
@@ -228,4 +355,28 @@ type StateHandle interface {
 	// // state.ImLoaded = false // BAD!! state is readonly outside the lambda, it will panic
 	// ```
 	StateTransaction(obj cbor.Er, f func())
+}
+
+// Provide access to storage methods
+// using for storage opcodes in smartcontracts
+type StorageHandle interface {
+	ImportLocalStorage(path string, car bool) (multistore.StoreID, cid.Cid, error)
+
+	DropLocalStorage(ids []multistore.StoreID) error
+
+	ListLocalImports() ([]Import, error)
+
+	FindData(root cid.Cid, pieceCid *cid.Cid) ([]QueryOffer, bool, error)
+
+	RetrieveData(RetrieveParams) error
+
+	InitDeal(InitDealParams) (*cid.Cid, error)
+
+	QueryAsk(maddr address.Address, pid peer.ID) (*storagemarket.StorageAsk, error)
+
+	ListDeals() ([]DealInfo, error)
+
+	GetDeal(propCid cid.Cid) (Deal, error)
+
+	ListAsks() ([]*storagemarket.StorageAsk, error)
 }

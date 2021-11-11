@@ -11,6 +11,7 @@ import (
 var (
 	SystemActorCodeID           cid.Cid
 	InitActorCodeID             cid.Cid
+	ContractActorCodeID         cid.Cid
 	CronActorCodeID             cid.Cid
 	AccountActorCodeID          cid.Cid
 	StoragePowerActorCodeID     cid.Cid

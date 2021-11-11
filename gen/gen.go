@@ -31,6 +31,17 @@ func main() {
 	//); err != nil {
 	//	panic(err)
 	//}
+	if err := gen.WriteTupleEncodersToFile("./actors/builtin/contract/cbor_gen.go", "contract",
+		// contract state
+		contract.State{},
+		contract.EvmLogs{},
+		contract.ContractParams{},
+		contract.ContractResult{},
+		contract.GetCodeResult{},
+		contract.LogsEntry{},
+	); err != nil {
+		panic(err)
+	}
 
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/cbor_gen.go", "builtin",
 		builtin.MinerAddrs{},
@@ -60,7 +71,15 @@ func main() {
 	); err != nil {
 		panic(err)
 	}
-
+	if err := gen.WriteTupleEncodersToFile("./actors/builtin/contract/cbor_gen.go", "contract",
+		// contract state
+		contract.State{},
+		contract.EvmLogs{},
+		contract.ContractParams{},
+		contract.ContractResult{},
+	); err != nil {
+		panic(err)
+	}
 	if err := gen.WriteTupleEncodersToFile("./actors/builtin/init/cbor_gen.go", "init",
 		// actor state
 		init_.State{},
